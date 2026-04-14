@@ -1,0 +1,239 @@
+'use client';
+
+import { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Hash, User, ShieldCheck } from 'lucide-react';
+import type { User as UserType, Project, InvoiceStatus } from '@/lib/db/types';
+import { cn } from '@/lib/utils';
+
+interface InvoiceFormProps {
+  formData: {
+    client_id: string;
+    project_id: string;
+    invoice_number: string;
+    amount: number | string;
+    due_date: string;
+    status: InvoiceStatus;
+    description: string;
+    notes: string;
+  };
+  users: UserType[];
+  projects: Project[];
+  onFormDataChange: (data: any) => void;
+  variant?: 'modern' | 'traditional';
+  saving?: boolean;
+  companyProfile?: any;
+}
+
+export function InvoiceForm({
+  formData,
+  users,
+  projects,
+  onFormDataChange,
+  variant = 'modern',
+  saving = false,
+  companyProfile,
+}: InvoiceFormProps) {
+  const filteredProjects = projects.filter(p => p.client_id === formData.client_id);
+
+  const totals = useMemo(() => {
+    const subtotal = Number(formData.amount);
+    const taxRate = 5;
+    const tax = subtotal * (taxRate / 100);
+    return { subtotal, tax, total: subtotal + tax };
+  }, [formData.amount]);
+
+  if (variant === 'modern') {
+    return (
+      <div className="grid gap-6 md:grid-cols-3 animate-in fade-in duration-300">
+        {/* Left Column */}
+        <div className="md:col-span-1 space-y-6">
+          {/* Identification */}
+          <Card className="border border-border shadow-sm rounded-md bg-card">
+            <CardHeader className="border-b bg-muted/50 py-3">
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Hash size={14} className="text-primary" /> Identification
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Invoice Number</Label>
+                <Input value={formData.invoice_number} onChange={e => onFormDataChange({...formData, invoice_number: e.target.value})} className="h-9 border-border font-mono font-bold uppercase text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Due Date</Label>
+                <Input type="date" value={formData.due_date} onChange={e => onFormDataChange({...formData, due_date: e.target.value})} className="h-9 border-border text-xs font-bold" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Account Mapping */}
+          <Card className="border border-border shadow-sm rounded-md bg-card">
+            <CardHeader className="border-b bg-muted/50 py-3">
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <User size={14} className="text-primary" /> Account Mapping
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Target Client</Label>
+                <Select value={formData.client_id} onValueChange={v => onFormDataChange({...formData, client_id: v, project_id: ''})}>
+                  <SelectTrigger className="h-9 border-border text-xs font-bold uppercase"><SelectValue placeholder="Select Client..." /></SelectTrigger>
+                  <SelectContent>
+                    {users.map(u => <SelectItem key={u.id} value={u.id} className="text-xs uppercase font-bold">{u.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Related Project</Label>
+                <Select value={formData.project_id} onValueChange={v => onFormDataChange({...formData, project_id: v})} disabled={!formData.client_id}>
+                  <SelectTrigger className="h-9 border-border text-xs font-bold uppercase"><SelectValue placeholder="Select Job..." /></SelectTrigger>
+                  <SelectContent>
+                    {filteredProjects.map(p => <SelectItem key={p.id} value={p.id} className="text-xs uppercase font-bold">{p.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column - Billing */}
+        <div className="md:col-span-2 space-y-6">
+          <Card className="border border-border shadow-sm rounded-md bg-card overflow-hidden">
+            <CardHeader className="border-b bg-muted/50 py-4">
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-foreground">Billing Specifications</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Base Amount ({companyProfile?.baseCurrency || 'AED'})</Label>
+                  <Input type="number" value={formData.amount} onChange={e => onFormDataChange({...formData, amount: Number(e.target.value)})} className="h-12 border-border font-black text-xl" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Current Status</Label>
+                  <Select value={formData.status} onValueChange={(v: any) => onFormDataChange({...formData, status: v})}>
+                    <SelectTrigger className="h-12 border-border font-bold uppercase text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending Receipt</SelectItem>
+                      <SelectItem value="paid">Settled / Paid</SelectItem>
+                      <SelectItem value="overdue">Overdue Payment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Service Breakdown</Label>
+                <Textarea value={formData.description} onChange={e => onFormDataChange({...formData, description: e.target.value})} className="min-h-[100px] border-border text-xs uppercase" placeholder="List materials or services delivered..." />
+              </div>
+
+              <div className="pt-6 border-t border-border flex justify-end">
+                <div className="w-80 space-y-4">
+                  <div className="flex justify-between border-b pb-4">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Subtotal Position</span>
+                    <span className="text-sm font-black text-foreground">{companyProfile?.baseCurrency || 'AED'} {totals.subtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-foreground text-card-foreground p-6 rounded-md">
+                    <div className="space-y-0.5">
+                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">Net Receivable</p>
+                      <p className="text-2xl font-black tracking-tighter">{companyProfile?.baseCurrency || 'AED'} {totals.total.toLocaleString()}</p>
+                    </div>
+                    <ShieldCheck className="h-8 w-8 text-primary opacity-50" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Traditional variant
+  return (
+    <form className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="client">Client *</Label>
+          <Select value={formData.client_id} onValueChange={(value) => onFormDataChange({ ...formData, client_id: value, project_id: '' })} disabled={saving}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a client" />
+            </SelectTrigger>
+            <SelectContent>
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.full_name} ({u.email})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="project">Project *</Label>
+          <Select value={formData.project_id} onValueChange={(value) => onFormDataChange({ ...formData, project_id: value })} disabled={saving || !formData.client_id}>
+            <SelectTrigger>
+              <SelectValue placeholder={formData.client_id ? "Select a project" : "Select a client first"} />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredProjects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="invoice_number">Invoice Number *</Label>
+          <Input id="invoice_number" value={formData.invoice_number} onChange={(e) => onFormDataChange({ ...formData, invoice_number: e.target.value })} required disabled={saving} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="status">Status *</Label>
+          <Select value={formData.status} onValueChange={(value: any) => onFormDataChange({ ...formData, status: value })} disabled={saving}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="amount">Amount ($) *</Label>
+          <Input id="amount" type="number" step="0.01" value={formData.amount} onChange={(e) => onFormDataChange({ ...formData, amount: e.target.value })} required disabled={saving} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="due_date">Due Date *</Label>
+          <Input id="due_date" type="date" value={formData.due_date} onChange={(e) => onFormDataChange({ ...formData, due_date: e.target.value })} required disabled={saving} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Invoice Items Description</Label>
+        <Textarea id="description" placeholder="List the items or services included in this invoice..." value={formData.description} onChange={(e) => onFormDataChange({ ...formData, description: e.target.value })} rows={3} disabled={saving} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="notes">Additional Notes</Label>
+        <Textarea id="notes" placeholder="Enter any additional notes, payment terms, or messages..." value={formData.notes} onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} rows={3} disabled={saving} />
+      </div>
+    </form>
+  );
+}

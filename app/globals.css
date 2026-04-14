@@ -1,26 +1,298 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Default Branding Colors - will be overridden by JS */
+    --branding-primary: #0F172A;
+    --branding-accent: #10B981;
+
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    /* Primary uses branding primary color converted to HSL */
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    /* Accent uses branding accent color */
+    --accent: 160 84% 39%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 222 47% 11%;
+    --radius: 0.5rem;
+    --sidebar: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 222 47% 11%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 84% 39%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 222 47% 11%;
+    --chart-1: 222 47% 11%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 24 95% 53%;
+    --chart-4: 12 76% 61%;
+    --chart-5: 0 0% 40%;
+  }
+
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 0 0% 95%;
+    --card: 24 9.8% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 160 84% 39%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 222 47% 11%;
+    --sidebar: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 222 47% 11%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 84% 39%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 222 47% 11%;
+    --chart-1: 222 47% 11%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 24 95% 53%;
+    --chart-4: 12 76% 61%;
+    --chart-5: 0 0% 40%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
+
+@layer components {
+  /* ERP-wide module normalization to match Settings visual standards */
+  :is(.settings-ui-standard, .finance-ui-standard) h1 {
+    @apply text-2xl font-semibold tracking-normal;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) h2,
+  :is(.settings-ui-standard, .finance-ui-standard) h3,
+  :is(.settings-ui-standard, .finance-ui-standard) .card-title-standard,
+  :is(.settings-ui-standard, .finance-ui-standard) .section-title-standard {
+    @apply text-base font-semibold tracking-normal;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) .text-muted-foreground {
+    @apply font-normal tracking-normal;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) p,
+  :is(.settings-ui-standard, .finance-ui-standard) span,
+  :is(.settings-ui-standard, .finance-ui-standard) label,
+  :is(.settings-ui-standard, .finance-ui-standard) td {
+    @apply text-sm;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) th {
+    @apply text-xs font-medium uppercase tracking-normal;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) button {
+    @apply text-sm;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) .font-black {
+    font-weight: 600 !important;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) .tracking-widest,
+  :is(.settings-ui-standard, .finance-ui-standard) .tracking-wider,
+  :is(.settings-ui-standard, .finance-ui-standard) .tracking-tight,
+  :is(.settings-ui-standard, .finance-ui-standard) .tracking-tighter,
+  :is(.settings-ui-standard, .finance-ui-standard) .tracking-\[0\.2em\] {
+    letter-spacing: 0 !important;
+  }
+
+  :is(.settings-ui-standard, .finance-ui-standard) .text-\[8px\],
+  :is(.settings-ui-standard, .finance-ui-standard) .text-\[9px\],
+  :is(.settings-ui-standard, .finance-ui-standard) .text-\[10px\],
+  :is(.settings-ui-standard, .finance-ui-standard) .text-\[11px\] {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+  }
+
+  /* Purchases (Procurement) strict normalization for legacy compact UI */
+  .purchases-ui-standard h1 {
+    @apply text-2xl font-semibold tracking-normal;
+  }
+
+  .purchases-ui-standard h2,
+  .purchases-ui-standard h3,
+  .purchases-ui-standard .card-title-standard,
+  .purchases-ui-standard .section-title-standard {
+    @apply text-base font-semibold tracking-normal;
+  }
+
+  .purchases-ui-standard p,
+  .purchases-ui-standard span,
+  .purchases-ui-standard label,
+  .purchases-ui-standard td,
+  .purchases-ui-standard .text-xs {
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+  }
+
+  .purchases-ui-standard .text-muted-foreground {
+    @apply font-normal tracking-normal;
+  }
+
+  .purchases-ui-standard th {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+    @apply font-medium uppercase tracking-normal;
+  }
+
+  .purchases-ui-standard button {
+    @apply text-sm;
+  }
+
+  .purchases-ui-standard .font-bold,
+  .purchases-ui-standard .font-black {
+    font-weight: 600 !important;
+  }
+
+  .purchases-ui-standard .tracking-widest,
+  .purchases-ui-standard .tracking-wider,
+  .purchases-ui-standard .tracking-tight,
+  .purchases-ui-standard .tracking-tighter,
+  .purchases-ui-standard .tracking-\[0\.2em\] {
+    letter-spacing: 0 !important;
+  }
+
+  .purchases-ui-standard .text-\[8px\],
+  .purchases-ui-standard .text-\[9px\],
+  .purchases-ui-standard .text-\[10px\],
+  .purchases-ui-standard .text-\[11px\] {
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+  }
+}
+
+/* Print Styles for PDF Generation */
+@media print {
+  /* Hide everything except PDF content */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only the PDF preview container */
+  [data-pdf-content], [data-pdf-content] * {
+    visibility: visible;
+  }
+  
+  /* Reset margins for print */
+  [data-pdf-content] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  /* Remove dialog backgrounds and borders */
+  [role="dialog"] {
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  /* Hide dialog controls */
+  [data-dialog-close],
+  [data-radix-dialog-overlay],
+  button {
+    display: none !important;
+  }
+  
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+  
+  /* Optimize for A4 */
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+  
+  /* Prevent breaking inside important elements */
+  table, tr, img {
+    page-break-inside: avoid;
+  }
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Hide non-essential elements */
+  nav, header, footer, .sidebar, .no-print, button, [class*="sidebar"] {
+    display: none !important;
+  }
+  
+  /* Show only print content */
+  .print-only, #invoice-print {
+    display: block !important;
+  }
+  
+  /* Page settings */
+  @page {
+    size: A4;
+    margin: 0.5cm;
+  }
+  
+  /* Ensure tables print properly */
+  table {
+    page-break-inside: avoid;
+  }
+  
+  /* Prevent content from being cut */
+  .break-inside-avoid {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
 }
