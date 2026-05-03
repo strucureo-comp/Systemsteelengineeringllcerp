@@ -350,4 +350,98 @@ router.get('/aging-report', async (req, res) => {
     }
 });
 
+router.get('/customers/:id/statement', async (req, res) => {
+    try {
+        const tenant_id = tenantIdFromReq(req);
+        const customerRef = req.params.id;
+        const from = req.query.from ? new Date(String(req.query.from)) : null;
+        const to = req.query.to ? new Date(String(req.query.to)) : null;
+
+        const customer = await Customer.findOne(
+            tenantScopedFilter(tenant_id, {
+                $or: [{ _id: customerRef }, { customer_id: customerRef }],
+            })
+        ).lean();
+        if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+        const customerKeys = [String(customer._id), String(customer.customer_id), customerRef];
+        const invoiceFilter = tenantScopedFilter(tenant_id, {
+            customer_id: { $in: customerKeys },
+        });
+
+        if (from || to) {
+            invoiceFilter.invoice_date = {};
+            if (from) invoiceFilter.invoice_date.$gte = from;
+            if (to) invoiceFilter.invoice_date.$lte = to;
+        }
+
+        const invoices = await InvoiceAR.find(invoiceFilter).sort({ invoice_date: 1, createdAt: 1 }).lean();
+        const invoiceIds = invoices.map((inv) => String(inv._id));
+
+        const allocations = invoiceIds.length
+            ? await PaymentAllocation.find(
+                tenantScopedFilter(tenant_id, { invoice_id: { $in: invoiceIds } })
+            ).lean()
+            : [];
+
+        const paymentIds = Array.from(new Set(allocations.map((a) => String(a.payment_id))));
+        const payments = paymentIds.length
+            ? await Payment.find(tenantScopedFilter(tenant_id, { _id: { $in: paymentIds } })).lean()
+            : [];
+
+        const paidByInvoice = new Map();
+        allocations.forEach((allocation) => {
+            const invoiceId = String(allocation.invoice_id);
+            paidByInvoice.set(
+                invoiceId,
+                Number(paidByInvoice.get(invoiceId) || 0) + Number(allocation.amount_allocated || 0)
+            );
+        });
+
+        const statementLines = invoices.map((invoice) => {
+            const paid = Number(paidByInvoice.get(String(invoice._id)) || 0);
+            const billed = Number(invoice.total_amount || 0);
+            return {
+                type: 'invoice',
+                invoice_id: String(invoice._id),
+                date: invoice.invoice_date || invoice.createdAt,
+                reference: invoice.invoice_number,
+                debit: billed,
+                credit: paid,
+                balance: Math.max(0, billed - paid),
+                status: invoice.status,
+            };
+        });
+
+        const totalBilled = statementLines.reduce((sum, line) => sum + Number(line.debit || 0), 0);
+        const totalPaid = statementLines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
+        const outstanding = Math.max(0, totalBilled - totalPaid);
+
+        res.json({
+            customer: {
+                id: String(customer._id),
+                customer_id: customer.customer_id,
+                legal_name: customer.legal_name,
+                email: customer.email,
+            },
+            period: { from, to },
+            lines: statementLines,
+            summary: {
+                total_billed: totalBilled,
+                total_paid: totalPaid,
+                outstanding,
+                invoices_count: statementLines.length,
+            },
+            payments: payments.map((payment) => ({
+                id: String(payment._id),
+                receipt_number: payment.receipt_number,
+                payment_date: payment.payment_date,
+                amount_received: payment.amount_received,
+            })),
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to generate customer statement', detail: err.message });
+    }
+});
+
 module.exports = router;

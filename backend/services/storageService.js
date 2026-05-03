@@ -1,7 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const sharp = require('sharp');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
@@ -38,7 +38,7 @@ const createStorage = (getFolderPath) =>
         },
         filename: (req, file, cb) => {
             const ext = path.extname(file.originalname).toLowerCase();
-            const uniqueName = `${uuidv4()}${ext}`;
+            const uniqueName = `${randomUUID()}${ext}`;
             cb(null, uniqueName);
         }
     });

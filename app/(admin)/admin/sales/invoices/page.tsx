@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateSalesInvoicePDF } from '@/lib/pdf-generator';
 import { LiveDocumentPreview } from '@/components/shared/layout/live-document-preview';
-import { getSalesInvoices, createSalesInvoice, updateSalesInvoice, updateSalesInvoiceStatus, deleteSalesInvoice } from '@/lib/services/business-documents-api';
+import { getSalesInvoices, createSalesInvoice, updateSalesInvoice, updateSalesInvoiceStatus, deleteSalesInvoice, emailSalesInvoice, createCreditNoteFromSalesInvoice } from '@/lib/services/business-documents-api';
 import { getCustomers } from '@/lib/api';
 import {
     SalesDocumentType,
@@ -50,6 +50,8 @@ interface SalesInvoice {
     taxAmount: number;
     total: number;
     notes: string;
+    deliveryNoteId?: string;
+    deliveryNoteNumber?: string;
     status: DocumentStatus;
     createdBy: string;
     createdAt: string;
@@ -200,6 +202,8 @@ export default function SalesInvoicesPage() {
             items: editingInvoice.items || [],
             taxRate: editingInvoice.taxRate || taxRate,
             notes: editingInvoice.notes || '',
+            deliveryNoteId: editingInvoice.deliveryNoteId || '',
+            deliveryNoteNumber: editingInvoice.deliveryNoteNumber || '',
             status: editingInvoice.status || 'draft',
             createdBy: editingInvoice.createdBy || 'Current User',
         };
@@ -281,12 +285,35 @@ export default function SalesInvoicesPage() {
     };
 
     const handleDelete = async (invoice: SalesInvoice) => {
+        const confirmed = window.confirm(`Delete invoice ${invoice.number}? This action cannot be undone.`);
+        if (!confirmed) return;
         try {
             await deleteSalesInvoice(invoice.id);
             await loadInvoices();
             toast.success('Invoice deleted');
         } catch {
             toast.error('Failed to delete invoice');
+        }
+    };
+
+    const handleEmailInvoice = async (invoice: SalesInvoice) => {
+        const to = window.prompt(`Enter recipient email for ${invoice.number}`);
+        if (!to) return;
+        try {
+            await emailSalesInvoice(invoice.id, to);
+            toast.success('Invoice email sent');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to send invoice email');
+        }
+    };
+
+    const handleCreateCreditNote = async (invoice: SalesInvoice) => {
+        const reason = window.prompt(`Reason for credit note on ${invoice.number}`, 'Credit adjustment') || '';
+        try {
+            await createCreditNoteFromSalesInvoice(invoice.id, { ratio: 1, reason });
+            toast.success('Credit note created');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to create credit note');
         }
     };
 
@@ -409,6 +436,9 @@ export default function SalesInvoicesPage() {
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => generateSalesInvoicePDF(invoice)} title="Download PDF">
                                         <Download size={16} />
                                     </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600" onClick={() => handleEmailInvoice(invoice)} title="Email">
+                                        <Send size={16} />
+                                    </Button>
                                     {canEdit(invoice) && (
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(invoice)}>
                                             <Edit size={16} />
@@ -434,6 +464,11 @@ export default function SalesInvoicesPage() {
                                     )}
                                     {canComplete(invoice) && (
                                         <Button variant="ghost" size="sm" className="h-8" onClick={() => handleComplete(invoice)}>Complete</Button>
+                                    )}
+                                    {(invoice.status === 'approved' || invoice.status === 'completed') && (
+                                        <Button variant="ghost" size="sm" className="h-8" onClick={() => handleCreateCreditNote(invoice)} title="Create credit note">
+                                            Credit Note
+                                        </Button>
                                     )}
                                     {canEdit(invoice) && (
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(invoice)}>
@@ -477,6 +512,14 @@ export default function SalesInvoicesPage() {
                                 <div className="space-y-2">
                                     <Label>Due Date</Label>
                                     <Input type="date" value={editingInvoice.dueDate || ''} onChange={e => setEditingInvoice({ ...editingInvoice, dueDate: e.target.value })} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Delivery Note ID</Label>
+                                    <Input value={editingInvoice.deliveryNoteId || ''} onChange={e => setEditingInvoice({ ...editingInvoice, deliveryNoteId: e.target.value })} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Delivery Note Number</Label>
+                                    <Input value={editingInvoice.deliveryNoteNumber || ''} onChange={e => setEditingInvoice({ ...editingInvoice, deliveryNoteNumber: e.target.value })} />
                                 </div>
                             </div>
 

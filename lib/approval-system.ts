@@ -166,23 +166,29 @@ export function getModuleFromType(type: DocumentType): AppModule {
 
 // Get all approvals config from localStorage
 export function getApprovalsConfig(): AllApprovalsConfig {
+    // Production-friendly defaults: enable core approvals with sensible roles and thresholds.
     const defaultConfig: AllApprovalsConfig = {
         sales: {
-            quotation: { enabled: false, approverRole: '', threshold: 0 },
-            proformaInvoice: { enabled: false, approverRole: '', threshold: 0 },
-            salesInvoice: { enabled: false, approverRole: '', threshold: 0 },
+            // Sales quotes and proforma invoices typically require manager approval
+            quotation: { enabled: true, approverRole: 'SalesManager', threshold: 0 },
+            proformaInvoice: { enabled: true, approverRole: 'SalesManager', threshold: 0 },
+            // Final invoices may require approval for manual adjustments or high value
+            salesInvoice: { enabled: true, approverRole: 'FinanceManager', threshold: 0 },
             deliveryNote: { enabled: false, approverRole: '', threshold: 0 },
         },
         purchase: {
-            purchaseOrder: { enabled: false, approverRole: '', threshold: 0 },
-            purchaseBill: { enabled: false, approverRole: '', threshold: 0 },
+            // POs and supplier bills require purchase/finance sign-off
+            purchaseOrder: { enabled: true, approverRole: 'PurchaseManager', threshold: 0 },
+            purchaseBill: { enabled: true, approverRole: 'FinanceManager', threshold: 0 },
         },
         hr: {
-            payslip: { enabled: false, approverRole: '', threshold: 0 },
+            // Payslips require payroll/HR approval
+            payslip: { enabled: true, approverRole: 'HRManager', threshold: 0 },
         },
         finance: {
-            paymentVoucher: { enabled: false, approverRole: '', threshold: 0 },
-            receiptVoucher: { enabled: false, approverRole: '', threshold: 0 },
+            // Vouchers should require finance approval; set a threshold for auto-skip if desired
+            paymentVoucher: { enabled: true, approverRole: 'FinanceManager', threshold: 100 },
+            receiptVoucher: { enabled: true, approverRole: 'FinanceManager', threshold: 0 },
         },
     };
 

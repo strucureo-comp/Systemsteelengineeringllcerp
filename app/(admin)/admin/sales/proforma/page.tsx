@@ -20,6 +20,9 @@ import {
     createProformaInvoice,
     updateProformaInvoice,
     deleteProformaInvoice,
+    recordProformaPayment,
+    convertProformaToInvoice,
+    emailProformaInvoice,
 } from '@/lib/services/business-documents-api';
 import { getCustomers } from '@/lib/api';
 import { useCompanySettings } from '@/lib/hooks/use-company-settings';
@@ -48,6 +51,10 @@ interface ProformaInvoice {
     taxAmount: number;
     total: number;
     notes: string;
+    advancePaid?: number;
+    balanceRemaining?: number;
+    convertedToInvoiceNumber?: string;
+    convertedAt?: string;
     status: DocumentStatus;
     createdBy: string;
     createdAt: string;
@@ -203,12 +210,52 @@ export default function ProformaInvoicesPage() {
     };
 
     const handleDelete = async (invoice: ProformaInvoice) => {
+        const confirmed = window.confirm(`Delete proforma invoice ${invoice.number}? This action cannot be undone.`);
+        if (!confirmed) return;
         try {
             await deleteProformaInvoice(invoice.id);
             setInvoices(prev => prev.filter(i => i.id !== invoice.id));
             toast.success('Deleted');
         } catch (error: any) {
             toast.error(error?.message || 'Failed to delete proforma invoice');
+        }
+    };
+
+    const handleRecordPayment = async (invoice: ProformaInvoice) => {
+        const value = window.prompt(`Enter advance payment amount for ${invoice.number}`);
+        if (!value) return;
+        const amount = Number(value);
+        if (!amount || amount <= 0) {
+            toast.error('Enter a valid amount');
+            return;
+        }
+        try {
+            await recordProformaPayment(invoice.id, amount);
+            await loadInvoices();
+            toast.success('Advance payment recorded');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to record payment');
+        }
+    };
+
+    const handleConvert = async (invoice: ProformaInvoice) => {
+        try {
+            await convertProformaToInvoice(invoice.id);
+            await loadInvoices();
+            toast.success('Converted to sales invoice');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to convert');
+        }
+    };
+
+    const handleEmailProforma = async (invoice: ProformaInvoice) => {
+        const to = window.prompt(`Enter recipient email for ${invoice.number}`);
+        if (!to) return;
+        try {
+            await emailProformaInvoice(invoice.id, to);
+            toast.success('Proforma email sent');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to send proforma email');
         }
     };
 
@@ -232,6 +279,10 @@ export default function ProformaInvoicesPage() {
             <Badge variant="outline" className={cn(
                 "text-[10px]",
                 status === 'draft' ? "bg-gray-50 text-gray-600 border-none" :
+                status === 'sent' ? "bg-sky-50 text-sky-600 border-none" :
+                status === 'partial' ? "bg-amber-50 text-amber-700 border-none" :
+                status === 'paid' ? "bg-emerald-50 text-emerald-700 border-none" :
+                status === 'converted' ? "bg-violet-50 text-violet-700 border-none" :
                 status === 'pending_approval' ? "bg-blue-50 text-blue-600 border-none" :
                 status === 'approved' ? "bg-emerald-50 text-emerald-600 border-none" :
                 "bg-amber-50 text-amber-600 border-none"
@@ -282,6 +333,9 @@ export default function ProformaInvoicesPage() {
                                         {getStatusBadge(invoice.status)}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">{invoice.customerName} • {invoice.date}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Advance: {formatCurrency(invoice.advancePaid || 0, baseCurrency)} • Balance: {formatCurrency(invoice.balanceRemaining || invoice.total, baseCurrency)}
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-6">
@@ -291,6 +345,21 @@ export default function ProformaInvoicesPage() {
                                 <div className="flex items-center gap-2">
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => generateProformaInvoicePDF(invoice)}>
                                         <Download size={16} />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600" onClick={() => handleEmailProforma(invoice)} title="Email">
+                                        <Send size={16} />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleRecordPayment(invoice)}>
+                                        Record Payment
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-xs"
+                                        disabled={Boolean(invoice.convertedToInvoiceNumber) || invoice.status === 'converted'}
+                                        onClick={() => handleConvert(invoice)}
+                                    >
+                                        {invoice.convertedToInvoiceNumber ? `Converted: ${invoice.convertedToInvoiceNumber}` : 'Convert'}
                                     </Button>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(invoice)}>
                                         <Edit size={16} />

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
-const { authenticate } = require('../middleware/auth');
+const { auth: authenticate } = require('../middleware/auth');
 const { hrDocumentUploader, avatarUploader, deleteFile, resizeImage, UPLOAD_ROOT } = require('../services/storageService');
 const Attachment = require('../models/Attachment');
 const { Employee } = require('../models/HRMS');

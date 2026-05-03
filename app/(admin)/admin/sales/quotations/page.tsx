@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateQuotationPDF } from '@/lib/pdf-generator';
 import { LiveDocumentPreview } from '@/components/shared/layout/live-document-preview';
-import { getSalesQuotations, createSalesQuotation, updateSalesQuotation, updateSalesQuotationStatus, deleteSalesQuotation } from '@/lib/services/business-documents-api';
+import { getSalesQuotations, createSalesQuotation, updateSalesQuotation, updateSalesQuotationStatus, deleteSalesQuotation, emailSalesQuotation, convertSalesQuotationToInvoice } from '@/lib/services/business-documents-api';
 import { getCustomers } from '@/lib/api';
 import { SalesDocumentType, DocumentStatus, isApprovalRequired, getApproverRole, canApproveDocument, getStatusInfo } from '@/lib/sales-approval';
 import { useCompanySettings } from '@/lib/hooks/use-company-settings';
@@ -262,12 +262,35 @@ export default function QuotationsPage() {
     };
 
     const handleDelete = async (quotation: SalesQuotation) => {
+        const confirmed = window.confirm(`Delete quotation ${quotation.number}? This action cannot be undone.`);
+        if (!confirmed) return;
         try {
             await deleteSalesQuotation(quotation.id);
             await loadQuotations();
             toast.success('Deleted');
         } catch {
             toast.error('Failed to delete quotation');
+        }
+    };
+
+    const handleEmailQuotation = async (quotation: SalesQuotation) => {
+        const to = window.prompt(`Enter recipient email for ${quotation.number}`);
+        if (!to) return;
+        try {
+            await emailSalesQuotation(quotation.id, to);
+            toast.success('Quotation email sent');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to send quotation email');
+        }
+    };
+
+    const handleConvertToInvoice = async (quotation: SalesQuotation) => {
+        try {
+            await convertSalesQuotationToInvoice(quotation.id);
+            await loadQuotations();
+            toast.success('Quotation converted to invoice');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to convert quotation');
         }
     };
 
@@ -384,6 +407,9 @@ export default function QuotationsPage() {
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => generateQuotationPDF(quotation)} title="Download PDF">
                                         <Download size={16} />
                                     </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600" onClick={() => handleEmailQuotation(quotation)} title="Email">
+                                        <Send size={16} />
+                                    </Button>
                                     {canEdit(quotation) && (
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(quotation)}>
                                             <Edit size={16} />
@@ -408,7 +434,10 @@ export default function QuotationsPage() {
                                         <Button variant="ghost" size="sm" onClick={() => handleResubmit(quotation)}>Resubmit</Button>
                                     )}
                                     {canComplete(quotation) && (
-                                        <Button variant="ghost" size="sm" onClick={() => handleComplete(quotation)}>Complete</Button>
+                                        <>
+                                            <Button variant="ghost" size="sm" onClick={() => handleConvertToInvoice(quotation)}>Convert</Button>
+                                            <Button variant="ghost" size="sm" onClick={() => handleComplete(quotation)}>Complete</Button>
+                                        </>
                                     )}
                                     {canEdit(quotation) && (
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(quotation)}>

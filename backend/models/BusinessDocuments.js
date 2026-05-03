@@ -31,12 +31,18 @@ const proformaInvoiceSchema = new mongoose.Schema({
     taxAmount: { type: Number, default: 0 },
     total: { type: Number, default: 0 },
     notes: String,
+    advancePaid: { type: Number, default: 0 },
+    balanceRemaining: { type: Number, default: 0 },
+    convertedToInvoiceId: String,
+    convertedToInvoiceNumber: String,
+    convertedAt: String,
     status: {
         type: String,
-        enum: ['draft', 'pending_approval', 'approved', 'rejected', 'completed'],
+        enum: ['draft', 'sent', 'partial', 'paid', 'converted', 'pending_approval', 'approved', 'rejected', 'completed'],
         default: 'draft'
     },
     createdBy: String,
+    updatedBy: String,
     approvedBy: String,
     approvedAt: String,
     rejectedBy: String,
@@ -64,6 +70,8 @@ const deliveryNoteSchema = new mongoose.Schema({
     // Document Reference
     invoiceRef: String,
     orderRef: String,
+    salesInvoiceId: String,
+    salesInvoiceNumber: String,
     
     // Delivery Info
     shipmentDate: String,
@@ -92,6 +100,7 @@ const deliveryNoteSchema = new mongoose.Schema({
         default: 'draft'
     },
     createdBy: String,
+    updatedBy: String,
     approvedBy: String,
     approvedAt: String
 }, { timestamps: true });
@@ -117,10 +126,15 @@ const paymentVoucherSchema = new mongoose.Schema({
     notes: String,
     status: { type: String, enum: ['draft', 'approved', 'posted', 'cancelled'], default: 'draft' },
     createdBy: String,
+    updatedBy: String,
     approvedBy: String,
     approvedAt: String,
     journal_entry_id: String,
-    postedAt: String
+    postedAt: String,
+    reversal_journal_entry_id: String,
+    reversedAt: String,
+    reversedBy: String,
+    reversalReason: String
 }, { timestamps: true });
 
 const receiptVoucherSchema = new mongoose.Schema({
@@ -138,10 +152,15 @@ const receiptVoucherSchema = new mongoose.Schema({
     notes: String,
     status: { type: String, enum: ['draft', 'approved', 'posted', 'cancelled'], default: 'draft' },
     createdBy: String,
+    updatedBy: String,
     approvedBy: String,
     approvedAt: String,
     journal_entry_id: String,
-    postedAt: String
+    postedAt: String,
+    reversal_journal_entry_id: String,
+    reversedAt: String,
+    reversedBy: String,
+    reversalReason: String
 }, { timestamps: true });
 
 const financialAuditReportSchema = new mongoose.Schema({
@@ -201,12 +220,17 @@ const salesInvoiceSchema = new mongoose.Schema({
     taxAmount: { type: Number, default: 0 },
     total: { type: Number, default: 0 },
     notes: String,
+    deliveryNoteId: String,
+    deliveryNoteNumber: String,
+    sourceProformaId: String,
+    sourceProformaNumber: String,
     status: {
         type: String,
         enum: ['draft', 'pending_approval', 'approved', 'rejected', 'completed'],
         default: 'draft'
     },
     createdBy: String,
+    updatedBy: String,
     approvedBy: String,
     approvedAt: String,
     rejectedBy: String,
@@ -242,6 +266,7 @@ const salesQuotationSchema = new mongoose.Schema({
         default: 'draft'
     },
     createdBy: String,
+    updatedBy: String,
     approvedBy: String,
     approvedAt: String,
     rejectedBy: String,
@@ -249,8 +274,29 @@ const salesQuotationSchema = new mongoose.Schema({
     rejectedReason: String
 }, { timestamps: true });
 
+// ── SALES CREDIT NOTE ───────────────────────────────────────────────────────
+const salesCreditNoteSchema = new mongoose.Schema({
+    tenant_id: { type: String, index: true, default: 'default' },
+    number: { type: String, required: true, index: true },
+    sourceInvoiceId: { type: String, required: true, index: true },
+    sourceInvoiceNumber: { type: String, required: true },
+    customerId: String,
+    customerName: { type: String, required: true },
+    date: { type: String, required: true },
+    reason: { type: String, default: '' },
+    items: [salesInvoiceItemSchema],
+    subtotal: { type: Number, default: 0 },
+    taxRate: { type: Number, default: 5 },
+    taxAmount: { type: Number, default: 0 },
+    total: { type: Number, default: 0 },
+    status: { type: String, enum: ['draft', 'issued', 'applied'], default: 'issued' },
+    createdBy: String,
+    updatedBy: String,
+}, { timestamps: true });
+
 const SalesInvoice = mongoose.models.SalesInvoice || mongoose.model('SalesInvoice', salesInvoiceSchema);
 const SalesQuotation = mongoose.models.SalesQuotation || mongoose.model('SalesQuotation', salesQuotationSchema);
+const SalesCreditNote = mongoose.models.SalesCreditNote || mongoose.model('SalesCreditNote', salesCreditNoteSchema);
 
 module.exports = {
     ProformaInvoice,
@@ -259,5 +305,6 @@ module.exports = {
     ReceiptVoucher,
     FinancialAuditReport,
     SalesInvoice,
-    SalesQuotation
+    SalesQuotation,
+    SalesCreditNote
 };

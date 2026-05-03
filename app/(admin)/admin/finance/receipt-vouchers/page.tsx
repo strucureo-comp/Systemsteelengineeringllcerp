@@ -20,6 +20,7 @@ import {
   deleteReceiptVoucher,
   approveReceiptVoucher,
   postReceiptVoucher,
+  reverseReceiptVoucher,
 } from '@/lib/services/business-documents-api';
 import { generateReceiptVoucherPDF } from '@/lib/pdf-generator';
 
@@ -241,6 +242,20 @@ export default function ReceiptVouchersPage() {
     }
   };
 
+  const reverse = async (id: string) => {
+    const reason = window.prompt('Reason for reversal', 'Posted in error') || 'Posted in error';
+    try {
+      setActionId(id);
+      const updated = updateFromAction(await reverseReceiptVoucher(id, reason));
+      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      toast.success('Receipt voucher reversed');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to reverse receipt voucher');
+    } finally {
+      setActionId('');
+    }
+  };
+
   const updateLine = (index: number, update: Partial<VoucherLine>) => {
     setForm((prev) => ({
       ...prev,
@@ -310,6 +325,12 @@ export default function ReceiptVouchersPage() {
                         <Button size="sm" className="gap-1" disabled={actionId === voucher.id} onClick={() => void post(voucher.id)}>
                           {actionId === voucher.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}
                           Post
+                        </Button>
+                      )}
+                      {voucher.status === 'posted' && (
+                        <Button variant="outline" size="sm" className="gap-1" disabled={actionId === voucher.id} onClick={() => void reverse(voucher.id)}>
+                          {actionId === voucher.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Reverse
                         </Button>
                       )}
                       <Button

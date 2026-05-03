@@ -6,11 +6,12 @@ const {
     HREvent,
     JobOpening, Applicant, OfferLetter, LeaveBalance, DisciplinaryAction, EmployeeDocument, PayrollDeletionAudit,
     Shift, Roster, Separation, FinalSettlement,
-    OvertimeLog, PaymentDetails, BiometricDevice, AttendanceLog
+    OvertimeLog, PaymentDetails, BiometricDevice, AttendanceLog, TimesheetEntry
 } = require('../models/HRMS');
 const { JournalEntry, Account } = require('../models/Finance');
 const { auth } = require('../middleware/auth');
 const approvalEngine = require('../services/approvalEngine');
+const { sendEmail } = require('../services/emailService');
 
 // Helper to transform MongoDB documents to include id field (alias for _id)
 const transformDoc = (doc) => {
@@ -438,6 +439,42 @@ router.post('/leaves/bulk-assign-type', auth, async (req, res) => {
 });
 
 // ── PAYROLL ─────────────────────────────────────────────────────────────────
+
+// Get current user's payslips
+router.get('/my-payslips', auth, async (req, res) => {
+    try {
+        const employee = await Employee.findOne({ user_id: req.user.id });
+        if (!employee) {
+            return res.status(404).json({ error: 'Current user is not linked to an employee profile' });
+        }
+
+        const payrolls = await Payroll.find({
+            'lines.employee_id': employee._id,
+            status: { $in: ['finalized', 'processed', 'posted', 'paid'] },
+            deletedAt: null
+        }).sort({ month: -1 });
+
+        const myPayslips = payrolls.map(p => {
+            const line = p.lines.find(l => String(l.employee_id) === String(employee._id));
+            return {
+                id: p._id,
+                month: p.month,
+                status: p.status,
+                payslip: line,
+                payroll: {
+                    id: p._id,
+                    month: p.month,
+                    status: p.status
+                }
+            };
+        });
+
+        res.json(myPayslips);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch your payslips', detail: err.message });
+    }
+});
+
 router.get('/payrolls', auth, async (req, res) => {
     try {
         const { includeDeleted } = req.query;
@@ -558,6 +595,12 @@ router.post('/payrolls/generate', auth, async (req, res) => {
             status: 'approved'
         });
 
+        const approvedTimesheets = await TimesheetEntry.find({
+            date: { $gte: startDate, $lte: endDate },
+            status: 'approved',
+            $or: [{ payroll_cycle_id: null }, { payroll_cycle_id: { $exists: false } }]
+        }).lean();
+
         // Group overtime by employee_id
         const overtimeByEmployee = {};
         overtimeLogs.forEach(log => {
@@ -568,10 +611,21 @@ router.post('/payrolls/generate', auth, async (req, res) => {
             overtimeByEmployee[empId] += log.overtime_amount || 0;
         });
 
+        // Integrate approved timesheet overtime into payroll (auto-link)
+        const overtimeHoursByEmployee = {};
+        for (const entry of approvedTimesheets) {
+            const empId = String(entry.employee_id);
+            const hours = Number(entry.hours_worked || 0);
+            const overtimeHours = entry.work_type === 'overtime' ? hours : Math.max(0, hours - 8);
+            if (!overtimeHoursByEmployee[empId]) overtimeHoursByEmployee[empId] = 0;
+            overtimeHoursByEmployee[empId] += overtimeHours;
+        }
+
         // Create payroll lines
         const lines = activeStructures.map(s => {
             const empId = s.employee_id._id.toString();
-            const overtimePay = overtimeByEmployee[empId] || 0;
+            const timesheetOvertimePay = Number(overtimeHoursByEmployee[empId] || 0) * Number(s.employee_id?.overtime_rate || 0);
+            const overtimePay = Number(overtimeByEmployee[empId] || 0) + timesheetOvertimePay;
             const basicPlusAllowances = s.basic + s.hra + s.da + s.ta + s.special_allowance;
             const totalDeductions = s.pf_employee + s.esi_employee + s.professional_tax + s.tds;
             const netPay = basicPlusAllowances + overtimePay - totalDeductions;
@@ -610,6 +664,13 @@ router.post('/payrolls/generate', auth, async (req, res) => {
             );
         }
 
+        if (approvedTimesheets.length > 0) {
+            await TimesheetEntry.updateMany(
+                { _id: { $in: approvedTimesheets.map(t => t._id) } },
+                { $set: { payroll_cycle_id: payroll._id } }
+            );
+        }
+
         res.status(201).json({ message: 'Payroll draft created successfully', data: transformDoc(payroll) });
     } catch (err) {
         if (err.code === 11000) {
@@ -619,6 +680,66 @@ router.post('/payrolls/generate', auth, async (req, res) => {
             });
         }
         res.status(500).json({ error: 'Failed to generate payroll', detail: err.message });
+    }
+});
+
+router.post('/payrolls/:id/payslips/:employeeId/send-email', auth, async (req, res) => {
+    try {
+        const payroll = await Payroll.findById(req.params.id).populate('lines.employee_id', 'name email employee_id');
+        if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
+
+        const line = (payroll.lines || []).find((ln) => String(ln.employee_id?._id || ln.employee_id) === String(req.params.employeeId));
+        if (!line || !line.employee_id) return res.status(404).json({ error: 'Payslip line not found for employee' });
+
+        const employee = line.employee_id;
+        if (!employee.email) return res.status(400).json({ error: 'Employee has no email address' });
+
+        const result = await sendEmail({
+            tenant_id: req.user?.tenant_id || 'default',
+            to: employee.email,
+            subject: `Payslip ${line.payslip_number || payroll.month}`,
+            html: `<p>Dear ${employee.name || 'Employee'},</p><p>Your payslip for <strong>${payroll.month}</strong> is ready.</p><p>Payslip No: ${line.payslip_number || '-'}</p><p>Net Pay: ${Number(line.net_pay || 0).toFixed(2)}</p>`,
+            reference_type: 'payroll_payslip',
+            reference_id: String(payroll._id),
+            sent_by: req.user?._id
+        });
+
+        if (!result.success) return res.status(500).json({ error: result.error || 'Failed to send payslip email' });
+        res.json({ success: true, message: 'Payslip email sent', to: employee.email });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to send payslip email', detail: err.message });
+    }
+});
+
+router.post('/payrolls/:id/payslips/send-email-all', auth, async (req, res) => {
+    try {
+        const payroll = await Payroll.findById(req.params.id).populate('lines.employee_id', 'name email employee_id');
+        if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
+
+        let sent = 0;
+        let failed = 0;
+        for (const line of payroll.lines || []) {
+            const employee = line.employee_id;
+            if (!employee?.email) {
+                failed += 1;
+                continue;
+            }
+            const result = await sendEmail({
+                tenant_id: req.user?.tenant_id || 'default',
+                to: employee.email,
+                subject: `Payslip ${line.payslip_number || payroll.month}`,
+                html: `<p>Dear ${employee.name || 'Employee'},</p><p>Your payslip for <strong>${payroll.month}</strong> is ready.</p><p>Payslip No: ${line.payslip_number || '-'}</p><p>Net Pay: ${Number(line.net_pay || 0).toFixed(2)}</p>`,
+                reference_type: 'payroll_payslip',
+                reference_id: String(payroll._id),
+                sent_by: req.user?._id
+            });
+            if (result.success) sent += 1;
+            else failed += 1;
+        }
+
+        res.json({ success: true, sent, failed, message: `Payslip emails processed: ${sent} sent, ${failed} failed` });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to send payslip emails', detail: err.message });
     }
 });
 

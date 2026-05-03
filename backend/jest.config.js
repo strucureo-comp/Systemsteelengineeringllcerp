@@ -1,4 +1,4 @@
-module.exports = {
+module.exports = Object.assign(require('./jest.config.cjs'), {
     testEnvironment: 'node',
     coverageDirectory: 'coverage',
     collectCoverageFrom: [
@@ -15,4 +15,4 @@ module.exports = {
     verbose: true,
     testTimeout: 10000,
     setupFilesAfterEnv: ['<rootDir>/tests/setup.js']
-};
+});

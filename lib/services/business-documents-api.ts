@@ -58,6 +58,33 @@ export async function deleteProformaInvoice(id: string) {
   return parseJson(res);
 }
 
+export async function recordProformaPayment(id: string, amount: number) {
+  const res = await fetch(`${API_BASE}/sales-documents/proforma-invoices/${id}/record-payment`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ amount }),
+  });
+  return parseJson(res);
+}
+
+export async function convertProformaToInvoice(id: string, payload: { dueDate?: string } = {}) {
+  const res = await fetch(`${API_BASE}/sales-documents/proforma-invoices/${id}/convert-to-invoice`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+export async function emailProformaInvoice(id: string, to: string) {
+  const res = await fetch(`${API_BASE}/sales-documents/proforma-invoices/${id}/send-email`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ to }),
+  });
+  return parseJson(res);
+}
+
 export async function getDeliveryNotes() {
   const res = await fetch(`${API_BASE}/sales-documents/delivery-notes`, {
     headers: authHeaders(),
@@ -142,6 +169,15 @@ export async function postPaymentVoucher(id: string) {
   return parseJson(res);
 }
 
+export async function reversePaymentVoucher(id: string, reason = 'Manual reversal') {
+  const res = await fetch(`${API_BASE}/vouchers/payment-vouchers/${id}/reverse`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  return parseJson(res);
+}
+
 export async function getReceiptVouchers() {
   const res = await fetch(`${API_BASE}/vouchers/receipt-vouchers`, {
     headers: authHeaders(),
@@ -188,6 +224,15 @@ export async function postReceiptVoucher(id: string) {
   const res = await fetch(`${API_BASE}/vouchers/receipt-vouchers/${id}/post`, {
     method: 'POST',
     headers: authHeaders(),
+  });
+  return parseJson(res);
+}
+
+export async function reverseReceiptVoucher(id: string, reason = 'Manual reversal') {
+  const res = await fetch(`${API_BASE}/vouchers/receipt-vouchers/${id}/reverse`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason }),
   });
   return parseJson(res);
 }
@@ -257,6 +302,24 @@ export async function deleteSalesInvoice(id: string) {
   return parseJson(res);
 }
 
+export async function emailSalesInvoice(id: string, to: string) {
+  const res = await fetch(`${API_BASE}/sales-documents/invoices/${id}/send-email`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ to }),
+  });
+  return parseJson(res);
+}
+
+export async function createCreditNoteFromSalesInvoice(id: string, payload: { ratio?: number; reason?: string } = {}) {
+  const res = await fetch(`${API_BASE}/sales-documents/invoices/${id}/create-credit-note`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
 // ── SALES QUOTATIONS ──────────────────────────────────────────────────────────
 
 export async function getSalesQuotations() {
@@ -298,6 +361,24 @@ export async function deleteSalesQuotation(id: string) {
   const res = await fetch(`${API_BASE}/sales-documents/quotations/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
+  });
+  return parseJson(res);
+}
+
+export async function emailSalesQuotation(id: string, to: string) {
+  const res = await fetch(`${API_BASE}/sales-documents/quotations/${id}/send-email`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ to }),
+  });
+  return parseJson(res);
+}
+
+export async function convertSalesQuotationToInvoice(id: string, payload: { dueDate?: string } = {}) {
+  const res = await fetch(`${API_BASE}/sales-documents/quotations/${id}/convert-to-invoice`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
   });
   return parseJson(res);
 }

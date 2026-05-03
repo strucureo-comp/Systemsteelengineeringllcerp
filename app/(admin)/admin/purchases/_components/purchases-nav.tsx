@@ -31,6 +31,7 @@ const navItems = [
         items: [
             { title: 'All Vendors', href: '/admin/purchases/vendors', icon: Store },
             { title: 'Vendor Credits', href: '/admin/purchases/vendor-credits', icon: FileText },
+            { title: 'Vendor Statements', href: '/admin/purchases/vendors/statements', icon: FileText },
         ]
     },
     {

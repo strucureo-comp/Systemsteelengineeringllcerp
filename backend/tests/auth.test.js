@@ -23,7 +23,7 @@ describe('Authentication API', () => {
                 .post('/api/auth/signup')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123',
+                    password: 'Password123!',
                     full_name: 'Test User',
                     role: 'user'
                 });
@@ -36,7 +36,7 @@ describe('Authentication API', () => {
         it('should reject duplicate email', async () => {
             await User.create({
                 email: 'test@example.com',
-                password: 'password123',
+                password: 'Password123!',
                 full_name: 'Test User'
             });
 
@@ -44,7 +44,7 @@ describe('Authentication API', () => {
                 .post('/api/auth/signup')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123',
+                    password: 'Password123!',
                     full_name: 'Test User 2'
                 });
 
@@ -56,7 +56,7 @@ describe('Authentication API', () => {
         beforeEach(async () => {
             await User.create({
                 email: 'test@example.com',
-                password: 'password123',
+                password: 'Password123!',
                 full_name: 'Test User'
             });
         });
@@ -66,7 +66,7 @@ describe('Authentication API', () => {
                 .post('/api/auth/login')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123'
+                    password: 'Password123!'
                 });
 
             expect(res.statusCode).toBe(200);

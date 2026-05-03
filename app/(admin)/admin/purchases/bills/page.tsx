@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getVendorBills, getVendors } from '@/lib/api';
+import { getVendorBills, getVendors, submitVendorBill, approveVendorBill, rejectVendorBill } from '@/lib/api';
 import { DashboardShell } from '@/components/shared/layout/dashboard-shell';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,12 @@ import {
     Search,
     RefreshCcw,
     ChevronRight,
-    ChevronLeft
+    ChevronLeft,
+    Send,
+    Check,
+    X
 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { VendorBill, Vendor } from '@/lib/db/types';
 import { cn } from '@/lib/utils';
 import { PurchasesNav } from '../_components/purchases-nav';
@@ -51,6 +55,38 @@ export default function VendorBillsPage() {
     };
 
     const fmt = (n: number) => formatCurrency(n, baseCurrency);
+
+    const handleSubmit = async (bill: VendorBill) => {
+        const result = await submitVendorBill(bill.id);
+        if (result) {
+            toast.success('Bill submitted for approval');
+            await fetchData();
+        } else {
+            toast.error('Failed to submit bill');
+        }
+    };
+
+    const handleApprove = async (bill: VendorBill) => {
+        const result = await approveVendorBill(bill.id);
+        if (result) {
+            toast.success('Bill approved');
+            await fetchData();
+        } else {
+            toast.error('Failed to approve bill');
+        }
+    };
+
+    const handleReject = async (bill: VendorBill) => {
+        const reason = window.prompt(`Rejection reason for ${bill.bill_number}`) || '';
+        if (!reason) return;
+        const result = await rejectVendorBill(bill.id, reason);
+        if (result) {
+            toast.success('Bill rejected');
+            await fetchData();
+        } else {
+            toast.error('Failed to reject bill');
+        }
+    };
 
     const filteredBills = bills.filter(b => 
         b.bill_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -116,6 +152,7 @@ export default function VendorBillsPage() {
                                     <th className="px-6 py-3 text-xs font-medium text-muted-foreground">Vendor</th>
                                     <th className="px-6 py-3 text-xs font-medium text-muted-foreground text-right">Amount</th>
                                     <th className="px-6 py-3 text-xs font-medium text-muted-foreground">Due Date</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-muted-foreground">Status</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground">Action</th>
                                 </tr>
                             </thead>
@@ -126,16 +163,36 @@ export default function VendorBillsPage() {
                                         <td className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">{vendors.find(v => v.id === bill.vendor_id)?.name}</td>
                                         <td className="px-6 py-4 text-xs font-black text-right text-foreground">{fmt(Number(bill.total_amount))}</td>
                                         <td className="px-6 py-4 text-xs font-medium text-muted-foreground">{new Date(bill.due_date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 text-xs">
+                                            <Badge variant="outline" className="text-[10px] border-none bg-muted text-muted-foreground">{bill.status}</Badge>
+                                        </td>
                                         <td className="px-6 py-4 text-right">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-primary">
-                                                <ChevronRight size={16} />
-                                            </Button>
+                                            <div className="flex items-center justify-end gap-1">
+                                                {bill.status === 'draft' && (
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-blue-600" onClick={() => handleSubmit(bill)} title="Submit for Approval">
+                                                        <Send size={16} />
+                                                    </Button>
+                                                )}
+                                                {bill.status === 'pending_approval' && (
+                                                    <>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-emerald-600" onClick={() => handleApprove(bill)} title="Approve">
+                                                            <Check size={16} />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-rose-600" onClick={() => handleReject(bill)} title="Reject">
+                                                            <X size={16} />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-primary">
+                                                    <ChevronRight size={16} />
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
                                 {filteredBills.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="py-20 text-center">
+                                        <td colSpan={6} className="py-20 text-center">
                                             <div className="flex flex-col items-center gap-3">
                                                 <Receipt className="h-10 w-10 text-zinc-100" />
                                                 <p className="text-muted-foreground">No Vendor Bills Found</p>

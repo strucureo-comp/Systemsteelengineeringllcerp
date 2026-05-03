@@ -53,6 +53,8 @@ const vendorSchema = new mongoose.Schema({
     is_active: { type: Boolean, default: true },
     is_approved: { type: Boolean, default: false }, // Vendor onboarding workflow
     notes: String,
+    created_by: String,
+    updated_by: String,
 }, { timestamps: true });
 
 // ── BILL ENGINE (Enterprise Standard) ──────────────────────────────────
@@ -120,6 +122,8 @@ const billSchema = new mongoose.Schema({
     cost_center: String,
 
     journal_entry_id: String, // Link to posted Journal Entry
+    created_by: String,
+    updated_by: String,
 }, { timestamps: true });
 
 // ── VENDOR PAYMENT (Outgoing Cash) ──────────────────────────────────────────────

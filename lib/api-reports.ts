@@ -15,9 +15,9 @@ function authHeaders() {
 
 // ==================== FINANCIAL REPORTS ====================
 
-export async function getPnLReport(period = 'month') {
+export async function getPnLReport(period = 'month', compare = false) {
   try {
-    const res = await fetch(`${API_BASE}/reports/financial/pnl?period=${period}`, {
+    const res = await fetch(`${API_BASE}/reports/financial/pnl?period=${period}&compare=${compare ? 'true' : 'false'}`, {
       headers: authHeaders(),
       cache: 'no-store'
     });
@@ -28,9 +28,9 @@ export async function getPnLReport(period = 'month') {
   return null;
 }
 
-export async function getBalanceSheet() {
+export async function getBalanceSheet(compare = false) {
   try {
-    const res = await fetch(`${API_BASE}/reports/financial/balance-sheet`, {
+    const res = await fetch(`${API_BASE}/reports/financial/balance-sheet?compare=${compare ? 'true' : 'false'}`, {
       headers: authHeaders(),
       cache: 'no-store'
     });
@@ -41,9 +41,9 @@ export async function getBalanceSheet() {
   return null;
 }
 
-export async function getCashFlowReport(period = 'month') {
+export async function getCashFlowReport(period = 'month', compare = false) {
   try {
-    const res = await fetch(`${API_BASE}/reports/financial/cash-flow?period=${period}`, {
+    const res = await fetch(`${API_BASE}/reports/financial/cash-flow?period=${period}&compare=${compare ? 'true' : 'false'}`, {
       headers: authHeaders(),
       cache: 'no-store'
     });
@@ -52,6 +52,172 @@ export async function getCashFlowReport(period = 'month') {
     console.warn('[API] getCashFlowReport error:', e);
   }
   return null;
+}
+
+export async function exportPnLPDF(period = 'month') {
+  try {
+    const res = await fetch(`${API_BASE}/reports/financial/pnl/pdf?period=${period}`, {
+      headers: authHeaders()
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `profit_loss_${period}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[API] exportPnLPDF error:', e);
+  }
+  return false;
+}
+
+export async function exportBalanceSheetPDF() {
+  try {
+    const res = await fetch(`${API_BASE}/reports/financial/balance-sheet/pdf`, {
+      headers: authHeaders()
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `balance_sheet_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[API] exportBalanceSheetPDF error:', e);
+  }
+  return false;
+}
+
+export async function exportCashFlowPDF(period = 'month') {
+  try {
+    const res = await fetch(`${API_BASE}/reports/financial/cash-flow/pdf?period=${period}`, {
+      headers: authHeaders()
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cash_flow_${period}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[API] exportCashFlowPDF error:', e);
+  }
+  return false;
+}
+
+export async function getTrialBalance(asOf?: string) {
+  try {
+    const params = new URLSearchParams();
+    if (asOf) params.set('asOf', asOf);
+    const res = await fetch(`${API_BASE}/reports/financial/trial-balance${params.toString() ? `?${params.toString()}` : ''}`, {
+      headers: authHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return res.json();
+  } catch (e) {
+    console.warn('[API] getTrialBalance error:', e);
+  }
+  return null;
+}
+
+export async function getGeneralLedger(opts: { account_code?: string; from?: string; to?: string } = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (opts.account_code) params.set('account_code', opts.account_code);
+    if (opts.from) params.set('from', opts.from);
+    if (opts.to) params.set('to', opts.to);
+    const res = await fetch(`${API_BASE}/reports/financial/general-ledger${params.toString() ? `?${params.toString()}` : ''}`, {
+      headers: authHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return res.json();
+  } catch (e) {
+    console.warn('[API] getGeneralLedger error:', e);
+  }
+  return null;
+}
+
+export async function getCoaSummary() {
+  try {
+    const res = await fetch(`${API_BASE}/reports/financial/coa-summary`, {
+      headers: authHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return res.json();
+  } catch (e) {
+    console.warn('[API] getCoaSummary error:', e);
+  }
+  return null;
+}
+
+export async function exportTrialBalancePDF(asOf?: string) {
+  try {
+    const params = new URLSearchParams();
+    if (asOf) params.set('asOf', asOf);
+    const res = await fetch(`${API_BASE}/reports/financial/trial-balance/pdf${params.toString() ? `?${params.toString()}` : ''}`, {
+      headers: authHeaders()
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `trial_balance_${asOf || new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[API] exportTrialBalancePDF error:', e);
+  }
+  return false;
+}
+
+export async function exportGeneralLedgerPDF(opts: { account_code?: string; from?: string; to?: string } = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (opts.account_code) params.set('account_code', opts.account_code);
+    if (opts.from) params.set('from', opts.from);
+    if (opts.to) params.set('to', opts.to);
+    const res = await fetch(`${API_BASE}/reports/financial/general-ledger/pdf${params.toString() ? `?${params.toString()}` : ''}`, {
+      headers: authHeaders()
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `general_ledger_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[API] exportGeneralLedgerPDF error:', e);
+  }
+  return false;
 }
 
 export async function getComprehensiveFinancialReport(period = 'month') {

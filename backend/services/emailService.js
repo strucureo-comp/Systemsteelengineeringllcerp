@@ -1,6 +1,14 @@
 const nodemailer = require('nodemailer');
 const EmailLog = require('../models/EmailLog');
 
+// Warn if essential SMTP env vars are missing
+const requiredSmtpVars = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+const missingSmtp = requiredSmtpVars.filter(k => !process.env[k]);
+if (missingSmtp.length > 0) {
+    console.warn('[Email Service] Missing SMTP environment variables:', missingSmtp.join(', '));
+    console.warn('[Email Service] Emails will not send until SMTP is configured. Copy .env.example -> .env and fill values.');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EMAIL SERVICE
 // Handles all email sending via SMTP with logging and error handling

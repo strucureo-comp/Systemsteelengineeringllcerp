@@ -8,7 +8,9 @@ const {
     VATReturn,
     CorporateTaxFiling,
 } = require('../models/TaxCenter');
+const { JournalEntry } = require('../models/Finance');
 const { auth } = require('../middleware/auth');
+const taxFilingAdapter = require('../services/taxFilingAdapter');
 
 router.use(auth);
 
@@ -50,6 +52,10 @@ function computeCorporateTax(body = {}) {
         taxLiability,
         taxPayable: safeNumber(body.taxPayable || taxLiability),
     };
+}
+
+function formatMoney(value) {
+    return Number(value || 0).toFixed(2);
 }
 
 // ======================================================
@@ -307,6 +313,58 @@ router.post('/vat-returns', async (req, res) => {
     }
 });
 
+router.get('/vat-returns/auto-populate', async (req, res) => {
+    try {
+        const tenant_id = tenantIdFromReq(req);
+        const periodStart = String(req.query.periodStart || '');
+        const periodEnd = String(req.query.periodEnd || '');
+        const outputAccount = String(req.query.outputAccount || '2100').trim();
+        const inputAccount = String(req.query.inputAccount || '1400').trim();
+
+        if (!periodStart || !periodEnd) {
+            return res.status(400).json({ error: 'periodStart and periodEnd are required' });
+        }
+
+        const start = new Date(periodStart);
+        const end = new Date(periodEnd);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            return res.status(400).json({ error: 'Invalid periodStart or periodEnd' });
+        }
+
+        const entries = await JournalEntry.find({
+            tenant_id,
+            status: { $in: ['posted', 'approved'] },
+            date: { $gte: start, $lte: end },
+        }).lean();
+
+        let totalOutputVAT = 0;
+        let totalInputVAT = 0;
+
+        for (const je of entries) {
+            for (const line of je.lines || []) {
+                const code = String(line.account_code || '').trim();
+                if (!code) continue;
+                if (code === outputAccount) totalOutputVAT += Number(line.credit || 0);
+                if (code === inputAccount) totalInputVAT += Number(line.debit || 0);
+            }
+        }
+
+        res.json({
+            periodStart,
+            periodEnd,
+            accounts: { outputAccount, inputAccount },
+            totals: {
+                totalOutputVAT,
+                totalInputVAT,
+                adjustments: 0,
+                netVAT: totalOutputVAT - totalInputVAT,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to auto-populate VAT from GL', detail: err.message });
+    }
+});
+
 router.put('/vat-returns/:id', async (req, res) => {
     try {
         const body = {
@@ -338,6 +396,18 @@ async function fileVATReturn(req, res) {
             { new: true }
         );
         if (!item) return res.status(404).json({ error: 'VAT return not found' });
+        // Attempt external e-filing if configured
+        try {
+            const adaptResult = await taxFilingAdapter.fileVATReturn(item, { requestedBy: req.user });
+            if (adaptResult && adaptResult.referenceNumber) {
+                item.referenceNumber = adaptResult.referenceNumber;
+                await item.save();
+            }
+        } catch (err) {
+            // Log adapter error but don't fail the internal filing
+            console.error('[TaxCenter] e-filing adapter error (VAT):', err.message || err);
+        }
+
         res.json(normalize(item));
     } catch (err) {
         res.status(500).json({ error: 'Failed to file VAT return' });
@@ -346,6 +416,35 @@ async function fileVATReturn(req, res) {
 
 router.post('/vat-returns/:id/file', fileVATReturn);
 router.patch('/vat-returns/:id/file', fileVATReturn);
+
+router.get('/vat-returns/:id/pdf', async (req, res) => {
+    try {
+        const item = await VATReturn.findOne(tenantFilter(req, { _id: req.params.id })).lean();
+        if (!item) return res.status(404).json({ error: 'VAT return not found' });
+
+        const doc = new (require('pdfkit'))({ margin: 40 });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="vat_return_${String(item.period || 'period').replace(/\\s+/g, '_')}.pdf"`);
+        doc.pipe(res);
+
+        doc.fontSize(16).text('VAT Return');
+        doc.moveDown(0.5);
+        doc.fontSize(10).text(`Period: ${item.periodStart} to ${item.periodEnd}`);
+        doc.text(`Jurisdiction: ${item.jurisdiction}`);
+        doc.text(`Status: ${item.status}`);
+        doc.text(`Reference: ${item.referenceNumber || '-'}`);
+        doc.moveDown();
+        doc.text(`Total Output VAT: ${formatMoney(item.totalOutputVAT)}`);
+        doc.text(`Total Input VAT: ${formatMoney(item.totalInputVAT)}`);
+        doc.text(`Adjustments: ${formatMoney(item.adjustments)}`);
+        doc.text(`Net VAT Payable/(Receivable): ${formatMoney(item.netVAT)}`);
+        doc.moveDown();
+        doc.fontSize(8).fillColor('gray').text(`Generated: ${new Date().toISOString()}`);
+        doc.end();
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to generate VAT return PDF', detail: err.message });
+    }
+});
 
 router.delete('/vat-returns/:id', async (req, res) => {
     try {
@@ -416,6 +515,17 @@ async function fileCorporateTax(req, res) {
             { new: true }
         );
         if (!item) return res.status(404).json({ error: 'Corporate tax filing not found' });
+        // Attempt external e-filing if configured
+        try {
+            const adaptResult = await taxFilingAdapter.fileCorporateTax(item, { requestedBy: req.user });
+            if (adaptResult && adaptResult.referenceNumber) {
+                item.referenceNumber = adaptResult.referenceNumber;
+                await item.save();
+            }
+        } catch (err) {
+            console.error('[TaxCenter] e-filing adapter error (Corporate):', err.message || err);
+        }
+
         res.json(normalize(item));
     } catch (err) {
         res.status(500).json({ error: 'Failed to file corporate tax filing' });
@@ -436,6 +546,37 @@ router.post('/corporate-tax/:id/request-assessment', async (req, res) => {
         res.json(normalize(item));
     } catch (err) {
         res.status(500).json({ error: 'Failed to request corporate tax assessment' });
+    }
+});
+
+router.get('/corporate-tax/:id/pdf', async (req, res) => {
+    try {
+        const item = await CorporateTaxFiling.findOne(tenantFilter(req, { _id: req.params.id })).lean();
+        if (!item) return res.status(404).json({ error: 'Corporate tax filing not found' });
+
+        const doc = new (require('pdfkit'))({ margin: 40 });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="corporate_tax_${item.taxYear || 'filing'}.pdf"`);
+        doc.pipe(res);
+
+        doc.fontSize(16).text('Corporate Tax Return');
+        doc.moveDown(0.5);
+        doc.fontSize(10).text(`Tax Year: ${item.taxYear}`);
+        doc.text(`Period: ${item.periodStart} to ${item.periodEnd}`);
+        doc.text(`Jurisdiction: ${item.jurisdiction}`);
+        doc.text(`Status: ${item.status}`);
+        doc.text(`Reference: ${item.referenceNumber || '-'}`);
+        doc.moveDown();
+        doc.text(`Taxable Income: ${formatMoney(item.taxableIncome)}`);
+        doc.text(`Losses Carried Forward: ${formatMoney(item.lossesCarriedForward)}`);
+        doc.text(`Tax Rate: ${formatMoney(item.taxRate)}%`);
+        doc.text(`Tax Liability: ${formatMoney(item.taxLiability)}`);
+        doc.text(`Tax Payable: ${formatMoney(item.taxPayable)}`);
+        doc.moveDown();
+        doc.fontSize(8).fillColor('gray').text(`Generated: ${new Date().toISOString()}`);
+        doc.end();
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to generate corporate tax PDF', detail: err.message });
     }
 });
 

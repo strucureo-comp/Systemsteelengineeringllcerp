@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-    Target, Lightbulb, Users, Handshake,
-    MessageSquare, FileSignature, FileText, Receipt, Truck,
+    Target, Lightbulb, Users, MessageSquare,
+    FileSignature, FileText, Receipt, Truck, FileSpreadsheet,
     ChevronRight
 } from 'lucide-react';
 
@@ -16,13 +16,13 @@ const salesNav = [
             { title: 'Leads', href: '/admin/sales/leads', icon: Target },
             { title: 'Opportunities', href: '/admin/sales/opportunities', icon: Lightbulb },
             { title: 'Customers', href: '/admin/sales/customers', icon: Users },
-            { title: 'Partners', href: '/admin/sales/partners', icon: Handshake },
+            { title: 'Statements', href: '/admin/sales/customers/statements', icon: FileSpreadsheet },
+            { title: 'Enquiries', href: '/admin/crm/enquiries', icon: MessageSquare },
         ]
     },
     {
         title: 'Sales Process',
         items: [
-            { title: 'Enquiries', href: '/admin/sales/enquiries', icon: MessageSquare },
             { title: 'Quotations', href: '/admin/sales/quotations', icon: FileSignature },
             { title: 'Proforma', href: '/admin/sales/proforma', icon: FileText },
             { title: 'Invoices', href: '/admin/sales/invoices', icon: Receipt },

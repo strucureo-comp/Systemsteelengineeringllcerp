@@ -93,9 +93,11 @@ exports.journalEntryValidator = [
     body('lines')
         .isArray({ min: 2 })
         .withMessage('At least two journal lines required'),
-    body('lines.*.account_id')
-        .isMongoId()
-        .withMessage('Valid account ID required'),
+    body('lines.*.account_code')
+        .trim()
+        .notEmpty()
+        .isLength({ min: 1, max: 20 })
+        .withMessage('Valid account code required'),
     body('lines.*.debit')
         .optional()
         .isFloat({ min: 0 })

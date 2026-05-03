@@ -4,6 +4,9 @@ const router = express.Router();
 const { PurchaseRequest, PurchaseOrder, GRN, RFQ } = require('../models/Procurement');
 const { auth } = require('../middleware/auth');
 const approvalEngine = require('../services/approvalEngine');
+const { sendEmail } = require('../services/emailService');
+const validate = require('../middleware/validate');
+const { purchaseOrderValidator } = require('../validators/prodReadinessValidators');
 
 function tenantIdFromReq(req) {
     return req.user?.tenant_id || 'default';
@@ -70,6 +73,7 @@ router.post('/rfqs', auth, async (req, res) => {
             tenant_id,
             rfq_number: req.body.rfq_number || `RFQ-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`,
             created_by: req.user.id,
+            updated_by: req.user.id,
         });
         await rfq.save();
         res.status(201).json(rfq);
@@ -82,7 +86,7 @@ router.get('/orders', auth, async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
         const orders = await PurchaseOrder.find(tenantScopedFilter(tenant_id))
-            .populate('vendor_id', 'legal_name')
+            .populate('vendor_id', 'name legal_name address phone email vat_no tax_id')
             .populate('created_by', 'full_name')
             .sort({ createdAt: -1 });
         res.json(orders);
@@ -91,7 +95,7 @@ router.get('/orders', auth, async (req, res) => {
     }
 });
 
-router.post('/orders', auth, async (req, res) => {
+router.post('/orders', auth, validate(purchaseOrderValidator), async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
         const count = await PurchaseOrder.countDocuments(tenantScopedFilter(tenant_id));
@@ -101,6 +105,7 @@ router.post('/orders', auth, async (req, res) => {
             po_number: req.body.po_number || `PO-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`,
             status: 'draft', // Always start as draft
             created_by: req.user.id,
+            updated_by: req.user.id,
         });
         await po.save();
         res.status(201).json(po);
@@ -191,12 +196,12 @@ router.get('/orders/:id', auth, async (req, res) => {
     }
 });
 
-router.put('/orders/:id', auth, async (req, res) => {
+router.put('/orders/:id', auth, validate(purchaseOrderValidator), async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
         const order = await PurchaseOrder.findOneAndUpdate(
             tenantScopedFilter(tenant_id, { _id: req.params.id }),
-            { ...req.body, tenant_id },
+            { ...req.body, tenant_id, updated_by: req.user.id },
             { new: true }
         ).populate('vendor_id', 'legal_name');
 
@@ -207,6 +212,55 @@ router.put('/orders/:id', auth, async (req, res) => {
         res.json(order);
     } catch (err) {
         res.status(500).json({ error: 'Failed to update purchase order' });
+    }
+});
+
+router.post('/orders/:id/cancel', auth, async (req, res) => {
+    try {
+        const tenant_id = tenantIdFromReq(req);
+        const po = await PurchaseOrder.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id }));
+        if (!po) return res.status(404).json({ error: 'Purchase order not found' });
+
+        if (['received', 'closed', 'cancelled'].includes(po.status)) {
+            return res.status(400).json({ error: `Cannot cancel purchase order in ${po.status} status` });
+        }
+
+        po.status = 'cancelled';
+        await po.save();
+        res.json({ success: true, message: 'Purchase order cancelled', purchaseOrder: po });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to cancel purchase order', detail: err.message });
+    }
+});
+
+router.post('/orders/:id/send-email', auth, async (req, res) => {
+    try {
+        const tenant_id = tenantIdFromReq(req);
+        const po = await PurchaseOrder.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id }))
+            .populate('vendor_id', 'legal_name email')
+            .lean();
+        if (!po) return res.status(404).json({ error: 'Purchase order not found' });
+
+        const to = req.body.to || po.vendor_id?.email;
+        if (!to) return res.status(400).json({ error: 'Recipient email is required' });
+
+        const result = await sendEmail({
+            tenant_id,
+            to,
+            subject: `Purchase Order ${po.po_number}`,
+            html: `<p>Please find Purchase Order <strong>${po.po_number}</strong>.</p><p>Total Amount: ${po.total_amount || 0}</p>`,
+            reference_type: 'purchase_order',
+            reference_id: String(po._id),
+            sent_by: req.user?._id
+        });
+
+        if (!result.success) {
+            return res.status(500).json({ error: 'Failed to send purchase order email', detail: result.error });
+        }
+
+        res.json({ success: true, message: 'Purchase order email sent' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to send purchase order email', detail: err.message });
     }
 });
 

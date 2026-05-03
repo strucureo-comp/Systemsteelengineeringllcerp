@@ -48,6 +48,7 @@ const purchaseOrderSchema = new mongoose.Schema({
         bill_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill' }
     }],
     created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    updated_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     delivery_date: Date,
     terms: String,
     payment_terms: String,
@@ -72,7 +73,8 @@ const rfqSchema = new mongoose.Schema({
     }],
     expiry_date: Date,
     notes: String,
-    created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    updated_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 // ── GRN (GOODS RECEIVED NOTE) ────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { DashboardShell } from '@/components/shared/layout/dashboard-shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -7,11 +8,36 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, Mail, Shield, ShieldCheck } from 'lucide-react';
+import { User, Mail, Shield, ShieldCheck, FileText, Download, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import { getMyPayslips } from '@/lib/api';
+import { generatePayslipPDF } from '@/lib/pdf-generator';
+import { useSettings } from '@/lib/settings-context';
+import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
     const { user } = useAuth();
+    const { settings } = useSettings();
+    const [payslips, setPayslips] = useState<any[]>([]);
+    const [loadingPayslips, setLoadingPayslips] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            fetchPayslips();
+        }
+    }, [user]);
+
+    const fetchPayslips = async () => {
+        try {
+            setLoadingPayslips(true);
+            const data = await getMyPayslips();
+            setPayslips(data || []);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoadingPayslips(false);
+        }
+    };
 
     const getInitials = (name: string) => {
         return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -19,6 +45,19 @@ export default function ProfilePage() {
 
     const handleSave = () => {
         toast.success("Profile mapping updated successfully.");
+    };
+
+    const handleDownload = async (payslipData: any) => {
+        try {
+            await generatePayslipPDF({
+                payroll: payslipData.payroll,
+                line: payslipData.payslip,
+                currency: settings.currency
+            });
+            toast.success('Payslip downloaded');
+        } catch (e) {
+            toast.error('Failed to generate PDF');
+        }
     };
 
     return (
@@ -53,9 +92,11 @@ export default function ProfilePage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Quick Stats or Additional Info could go here */}
                     </div>
 
-                    {/* Right Col: Personal Info */}
+                    {/* Right Col: Personal Info & Payslips */}
                     <div className="md:col-span-2 space-y-6">
                         <Card className="border-border shadow-sm">
                             <CardHeader className="border-b border-border bg-muted/20 pb-4">
@@ -85,6 +126,62 @@ export default function ProfilePage() {
                                         Save Changes
                                     </Button>
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* My Payslips Section */}
+                        <Card className="border-border shadow-sm">
+                            <CardHeader className="border-b border-border bg-muted/20 pb-4">
+                                <CardTitle className="text-sm font-bold uppercase tracking-tight flex items-center justify-between">
+                                    My Payslips
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={fetchPayslips} disabled={loadingPayslips}>
+                                        <RefreshCcw className={cn("h-3 w-3", loadingPayslips && "animate-spin")} />
+                                    </Button>
+                                </CardTitle>
+                                <CardDescription className="text-xs">Access and download your monthly payment records.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                                {loadingPayslips ? (
+                                    <div className="flex flex-col items-center justify-center py-8 space-y-2">
+                                        <RefreshCcw className="h-6 w-6 animate-spin text-primary/40" />
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Loading Records...</p>
+                                    </div>
+                                ) : payslips.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {payslips.map((item) => (
+                                            <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-foreground">{item.month}</p>
+                                                        <p className="text-[10px] text-muted-foreground font-medium">{item.payslip?.payslip_number || 'N/A'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-right mr-3">
+                                                        <p className="text-xs font-black text-foreground">
+                                                            {Number(item.payslip?.net_pay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        </p>
+                                                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{settings.currency || 'AED'}</p>
+                                                    </div>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg border-border" onClick={() => handleDownload(item)}>
+                                                        <Download size={14} />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12 border-2 border-dashed border-muted rounded-2xl">
+                                        <FileText className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+                                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No Payslips Found</p>
+                                        <p className="text-[10px] text-muted-foreground mt-1 px-4 text-balance">
+                                            Your monthly payslips will appear here once they are processed by the HR department.
+                                        </p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

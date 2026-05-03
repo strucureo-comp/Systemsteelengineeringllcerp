@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getPurchaseOrder } from '@/lib/api';
+import { getPurchaseOrder, sendPurchaseOrderEmail, cancelPurchaseOrder } from '@/lib/api';
 import { DashboardShell } from '@/components/shared/layout/dashboard-shell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,15 +12,19 @@ import {
     Printer, 
     Trash2, 
     RefreshCcw, 
+    Mail,
     Store, 
     Calendar, 
     Hash,
     Truck,
     CheckCircle2,
-    FileText
+    FileText,
+    Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PurchaseOrder } from '@/lib/db/types';
+import { toast } from 'sonner';
+import { generatePurchaseOrderPDF } from '@/lib/pdf-generator';
 
 export default function PurchaseOrderDetailPage() {
   const { id } = useParams() as { id: string };
@@ -46,6 +50,28 @@ export default function PurchaseOrderDetailPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleEmail = async () => {
+    if (!order) return;
+    const to = window.prompt(`Enter recipient email for ${order.po_number}`);
+    if (!to) return;
+    const result = await sendPurchaseOrderEmail(order.id, to);
+    if (result?.success) toast.success('Purchase order email sent');
+    else toast.error('Failed to send purchase order email');
+  };
+
+  const handleCancelPO = async () => {
+    if (!order) return;
+    const confirmed = window.confirm(`Cancel purchase order ${order.po_number}?`);
+    if (!confirmed) return;
+    const result = await cancelPurchaseOrder(order.id);
+    if (result?.success) {
+      toast.success('Purchase order cancelled');
+      await fetchOrder();
+    } else {
+      toast.error('Failed to cancel purchase order');
+    }
   };
 
   if (loading) {
@@ -82,10 +108,16 @@ export default function PurchaseOrderDetailPage() {
                 <ChevronLeft className="mr-2 h-5 w-5" /> Back to Purchases
             </Button>
             <div className="flex gap-3">
+                <Button variant="outline" className="rounded-xl h-11 px-6 font-bold border-2" onClick={() => generatePurchaseOrderPDF(order)}>
+                    <Download className="mr-2 h-5 w-5" /> Download PDF
+                </Button>
                 <Button variant="outline" className="rounded-xl h-11 px-6 font-bold border-2" onClick={handlePrint}>
                     <Printer className="mr-2 h-5 w-5" /> Print PO
                 </Button>
-                <Button variant="destructive" className="rounded-xl h-11 px-6 font-bold shadow-lg shadow-red-100">
+                <Button variant="outline" className="rounded-xl h-11 px-6 font-bold border-2" onClick={handleEmail}>
+                    <Mail className="mr-2 h-5 w-5" /> Email PO
+                </Button>
+                <Button variant="destructive" className="rounded-xl h-11 px-6 font-bold shadow-lg shadow-red-100" onClick={handleCancelPO}>
                     <Trash2 className="mr-2 h-5 w-5" /> Cancel PO
                 </Button>
             </div>

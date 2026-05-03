@@ -3,6 +3,8 @@ const router = express.Router();
 const { auth } = require('../middleware/auth');
 const { PaymentVoucher, ReceiptVoucher } = require('../models/BusinessDocuments');
 const { JournalEntry, Account } = require('../models/Finance');
+const validate = require('../middleware/validate');
+const { voucherValidator } = require('../validators/prodReadinessValidators');
 
 router.use(auth);
 
@@ -201,6 +203,49 @@ async function postVoucher(Model, req, res, config) {
     }
 }
 
+async function reverseVoucher(Model, req, res, label) {
+    try {
+        const tenant_id = tenantIdFromReq(req);
+        const voucher = await Model.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id }));
+        if (!voucher) return res.status(404).json({ error: `${label} not found` });
+        if (voucher.status !== 'posted') return res.status(400).json({ error: `Only posted ${label.toLowerCase()} can be reversed` });
+        if (!voucher.journal_entry_id) return res.status(400).json({ error: `${label} has no posted journal entry` });
+        if (voucher.reversal_journal_entry_id) return res.status(400).json({ error: `${label} is already reversed` });
+
+        const original = await JournalEntry.findOne(tenantScopedFilter(tenant_id, { _id: voucher.journal_entry_id })).lean();
+        if (!original) return res.status(404).json({ error: 'Original journal entry not found' });
+
+        const reversedLines = (original.lines || []).map((line) => ({
+            account_code: line.account_code,
+            account_name: line.account_name,
+            debit: Number(line.credit || 0),
+            credit: Number(line.debit || 0),
+            description: `Reversal: ${line.description || ''}`.trim(),
+        }));
+
+        const reversalEntry = await createJournalEntry({
+            tenant_id,
+            prefix: 'JE-REV',
+            date: new Date(),
+            reference: `${voucher.voucherNumber}-REV`,
+            description: `Reversal of ${label} ${voucher.voucherNumber}`,
+            lines: reversedLines,
+            createdBy: buildCreatedBy(req),
+        });
+
+        voucher.status = 'cancelled';
+        voucher.reversal_journal_entry_id = String(reversalEntry._id);
+        voucher.reversedAt = new Date().toISOString();
+        voucher.reversedBy = buildCreatedBy(req);
+        voucher.reversalReason = String(req.body?.reason || 'Manual reversal');
+        await voucher.save();
+
+        return res.json({ voucher, reversal_journal_entry: reversalEntry });
+    } catch (error) {
+        return res.status(500).json({ error: `Failed to reverse ${label.toLowerCase()}`, detail: error.message });
+    }
+}
+
 router.get('/payment-vouchers', async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
@@ -211,7 +256,7 @@ router.get('/payment-vouchers', async (req, res) => {
     }
 });
 
-router.post('/payment-vouchers', async (req, res) => {
+router.post('/payment-vouchers', validate(voucherValidator), async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
         const year = new Date().getFullYear();
@@ -236,7 +281,7 @@ router.post('/payment-vouchers', async (req, res) => {
     }
 });
 
-router.put('/payment-vouchers/:id', async (req, res) => {
+router.put('/payment-vouchers/:id', validate(voucherValidator), async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
         const current = await PaymentVoucher.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id }));
@@ -258,6 +303,7 @@ router.put('/payment-vouchers/:id', async (req, res) => {
                 lines,
                 cashAccountCode: req.body.cashAccountCode || current.cashAccountCode || '1000',
                 totalAmount: totalAmount(lines),
+                updatedBy: buildCreatedBy(req),
             },
             { new: true }
         );
@@ -302,6 +348,10 @@ router.post('/payment-vouchers/:id/post', async (req, res) => {
     });
 });
 
+router.post('/payment-vouchers/:id/reverse', async (req, res) => {
+    return reverseVoucher(PaymentVoucher, req, res, 'Payment voucher');
+});
+
 router.get('/receipt-vouchers', async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
@@ -312,7 +362,7 @@ router.get('/receipt-vouchers', async (req, res) => {
     }
 });
 
-router.post('/receipt-vouchers', async (req, res) => {
+router.post('/receipt-vouchers', validate(voucherValidator), async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
         const year = new Date().getFullYear();
@@ -337,7 +387,7 @@ router.post('/receipt-vouchers', async (req, res) => {
     }
 });
 
-router.put('/receipt-vouchers/:id', async (req, res) => {
+router.put('/receipt-vouchers/:id', validate(voucherValidator), async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);
         const current = await ReceiptVoucher.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id }));
@@ -359,6 +409,7 @@ router.put('/receipt-vouchers/:id', async (req, res) => {
                 lines,
                 cashAccountCode: req.body.cashAccountCode || current.cashAccountCode || '1000',
                 totalAmount: totalAmount(lines),
+                updatedBy: buildCreatedBy(req),
             },
             { new: true }
         );
@@ -401,6 +452,10 @@ router.post('/receipt-vouchers/:id/post', async (req, res) => {
         counterpartyField: 'payerName',
         counterpartyLabel: 'Cash receipt',
     });
+});
+
+router.post('/receipt-vouchers/:id/reverse', async (req, res) => {
+    return reverseVoucher(ReceiptVoucher, req, res, 'Receipt voucher');
 });
 
 module.exports = router;

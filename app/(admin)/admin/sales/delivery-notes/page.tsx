@@ -63,6 +63,8 @@ interface DeliveryNote {
     // Document info
     invoiceRef: string;
     orderRef: string;
+    salesInvoiceId?: string;
+    salesInvoiceNumber?: string;
     
     // Delivery info
     shipmentDate: string;
@@ -213,6 +215,8 @@ export default function DeliveryNotesPage() {
             
             invoiceRef: editingNote.invoiceRef || '',
             orderRef: editingNote.orderRef || '',
+            salesInvoiceId: editingNote.salesInvoiceId || '',
+            salesInvoiceNumber: editingNote.salesInvoiceNumber || '',
             
             shipmentDate: editingNote.shipmentDate || '',
             deliveryDate: editingNote.deliveryDate || '',
@@ -317,6 +321,8 @@ export default function DeliveryNotesPage() {
     };
 
     const handleDelete = async (note: DeliveryNote) => {
+        const confirmed = window.confirm(`Delete delivery note ${note.number}? This action cannot be undone.`);
+        if (!confirmed) return;
         try {
             await deleteDeliveryNote(note.id);
             setNotes(prev => prev.filter(n => n.id !== note.id));
@@ -575,6 +581,8 @@ export default function DeliveryNotesPage() {
                                     <div className="space-y-2"><Label>Vehicle/Courier Details</Label><Input value={editingNote.vehicleDetails || ''} onChange={e => setEditingNote({ ...editingNote, vehicleDetails: e.target.value })} /></div>
                                     <div className="space-y-2"><Label>Warehouse Origin</Label><Input value={editingNote.warehouseOrigin || ''} onChange={e => setEditingNote({ ...editingNote, warehouseOrigin: e.target.value })} /></div>
                                     <div className="space-y-2"><Label>Order/PO Ref</Label><Input value={editingNote.orderRef || ''} onChange={e => setEditingNote({ ...editingNote, orderRef: e.target.value })} /></div>
+                                    <div className="space-y-2"><Label>Sales Invoice ID</Label><Input value={editingNote.salesInvoiceId || ''} onChange={e => setEditingNote({ ...editingNote, salesInvoiceId: e.target.value })} /></div>
+                                    <div className="space-y-2"><Label>Sales Invoice Number</Label><Input value={editingNote.salesInvoiceNumber || ''} onChange={e => setEditingNote({ ...editingNote, salesInvoiceNumber: e.target.value })} /></div>
                                 </div>
                             </div>
 

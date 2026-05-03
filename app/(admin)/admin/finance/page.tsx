@@ -75,7 +75,7 @@ const MODULES_BASE: Omit<FinanceModule, 'stats'>[] = [
     {
         key: 'tax', label: 'Tax Management', icon: Scale,
         desc: 'Tax Codes · VAT/GST · Returns · Filing · Audit',
-        href: '/admin/settings/taxes',
+        href: '/admin/finance/taxes',
     },
     {
         key: 'intercompany', label: 'Intercompany', icon: Building2,

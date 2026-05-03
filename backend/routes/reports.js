@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ReportService = require('../services/reportService');
+const { JournalEntry, Account } = require('../models/Finance');
 
 // In-memory storage for demo (would be MongoDB in production)
 let reportCache = {
@@ -44,13 +45,456 @@ const getDateRange = (period) => {
   return { startDate, endDate };
 };
 
+const getPreviousDateRange = (period, currentStart, currentEnd) => {
+  const start = new Date(currentStart);
+  const end = new Date(currentEnd);
+  switch (period) {
+    case 'today': {
+      const pStart = new Date(start);
+      pStart.setDate(pStart.getDate() - 1);
+      const pEnd = new Date(end);
+      pEnd.setDate(pEnd.getDate() - 1);
+      return { startDate: pStart, endDate: pEnd };
+    }
+    case 'week': {
+      const pStart = new Date(start);
+      pStart.setDate(pStart.getDate() - 7);
+      const pEnd = new Date(end);
+      pEnd.setDate(pEnd.getDate() - 7);
+      return { startDate: pStart, endDate: pEnd };
+    }
+    case 'month': {
+      return {
+        startDate: new Date(start.getFullYear(), start.getMonth() - 1, 1),
+        endDate: new Date(start.getFullYear(), start.getMonth(), 0),
+      };
+    }
+    case 'quarter': {
+      return {
+        startDate: new Date(start.getFullYear(), start.getMonth() - 3, 1),
+        endDate: new Date(start.getFullYear(), start.getMonth(), 0),
+      };
+    }
+    case 'year': {
+      return {
+        startDate: new Date(start.getFullYear() - 1, 0, 1),
+        endDate: new Date(start.getFullYear() - 1, 11, 31),
+      };
+    }
+    default: {
+      const diff = end.getTime() - start.getTime();
+      return {
+        startDate: new Date(start.getTime() - diff - (24 * 60 * 60 * 1000)),
+        endDate: new Date(start.getTime() - (24 * 60 * 60 * 1000)),
+      };
+    }
+  }
+};
+
 // ==================== FINANCIAL REPORTS ====================
+
+router.get('/financial/trial-balance', async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || req.headers['x-tenant-id'] || 'default';
+    const asOf = req.query.asOf ? new Date(String(req.query.asOf)) : new Date();
+
+    const entries = await JournalEntry.find({
+      tenant_id: tenantId,
+      status: { $in: ['posted', 'approved'] },
+      date: { $lte: asOf }
+    }).lean();
+
+    const balances = new Map();
+    for (const je of entries) {
+      for (const line of je.lines || []) {
+        const code = String(line.account_code || '').trim();
+        if (!code) continue;
+        if (!balances.has(code)) balances.set(code, { debit: 0, credit: 0 });
+        const item = balances.get(code);
+        item.debit += Number(line.debit || 0);
+        item.credit += Number(line.credit || 0);
+      }
+    }
+
+    const accounts = await Account.find({ tenant_id: tenantId }).lean();
+    const accountByCode = new Map(accounts.map((a) => [String(a.code), a]));
+
+    const lines = Array.from(balances.entries())
+      .map(([account_code, amount]) => {
+        const acc = accountByCode.get(account_code);
+        return {
+          account_code,
+          account_name: acc?.name || 'Unknown Account',
+          account_type: acc?.type || 'unknown',
+          debit: Number(amount.debit || 0),
+          credit: Number(amount.credit || 0),
+          net: Number(amount.debit || 0) - Number(amount.credit || 0),
+        };
+      })
+      .sort((a, b) => a.account_code.localeCompare(b.account_code));
+
+    const totals = lines.reduce((s, l) => {
+      s.debit += l.debit;
+      s.credit += l.credit;
+      return s;
+    }, { debit: 0, credit: 0 });
+
+    res.json({
+      asOf: asOf.toISOString(),
+      lines,
+      totals,
+      balanced: Math.abs(totals.debit - totals.credit) < 0.01
+    });
+  } catch (error) {
+    console.error('Trial Balance Error:', error);
+    res.status(500).json({ error: 'Failed to generate trial balance' });
+  }
+});
+
+router.get('/financial/trial-balance/pdf', async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || req.headers['x-tenant-id'] || 'default';
+    const asOf = req.query.asOf ? new Date(String(req.query.asOf)) : new Date();
+
+    const entries = await JournalEntry.find({
+      tenant_id: tenantId,
+      status: { $in: ['posted', 'approved'] },
+      date: { $lte: asOf }
+    }).lean();
+
+    const balances = new Map();
+    for (const je of entries) {
+      for (const line of je.lines || []) {
+        const code = String(line.account_code || '').trim();
+        if (!code) continue;
+        if (!balances.has(code)) balances.set(code, { debit: 0, credit: 0 });
+        const item = balances.get(code);
+        item.debit += Number(line.debit || 0);
+        item.credit += Number(line.credit || 0);
+      }
+    }
+
+    const accounts = await Account.find({ tenant_id: tenantId }).lean();
+    const accountByCode = new Map(accounts.map((a) => [String(a.code), a]));
+
+    const lines = Array.from(balances.entries())
+      .map(([account_code, amount]) => {
+        const acc = accountByCode.get(account_code);
+        return {
+          account_code,
+          account_name: acc?.name || 'Unknown Account',
+          debit: Number(amount.debit || 0),
+          credit: Number(amount.credit || 0)
+        };
+      })
+      .sort((a, b) => a.account_code.localeCompare(b.account_code));
+
+    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="trial_balance_${asOf.toISOString().slice(0, 10)}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(20).text('Trial Balance', { align: 'center' });
+    doc.fontSize(10).text(`As of: ${asOf.toLocaleDateString()}`, { align: 'center' });
+    doc.moveDown();
+
+    const tableTop = 150;
+    doc.fontSize(10).font('Helvetica-Bold');
+    doc.text('Code', 40, tableTop);
+    doc.text('Account Name', 100, tableTop);
+    doc.text('Debit', 400, tableTop, { align: 'right', width: 80 });
+    doc.text('Credit', 480, tableTop, { align: 'right', width: 80 });
+    
+    doc.moveTo(40, tableTop + 15).lineTo(560, tableTop + 15).stroke();
+
+    let y = tableTop + 25;
+    doc.font('Helvetica');
+    for (const line of lines) {
+      if (y > 700) { doc.addPage(); y = 50; }
+      doc.text(line.account_code, 40, y);
+      doc.text(line.account_name, 100, y, { width: 280 });
+      doc.text(line.debit.toFixed(2), 400, y, { align: 'right', width: 80 });
+      doc.text(line.credit.toFixed(2), 480, y, { align: 'right', width: 80 });
+      y += 15;
+    }
+
+    doc.moveDown();
+    doc.font('Helvetica-Bold');
+    doc.moveTo(40, y).lineTo(560, y).stroke();
+    y += 10;
+    doc.text('TOTAL', 100, y);
+    doc.text(totalDebit.toFixed(2), 400, y, { align: 'right', width: 80 });
+    doc.text(totalCredit.toFixed(2), 480, y, { align: 'right', width: 80 });
+
+    doc.end();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate Trial Balance PDF' });
+  }
+});
+
+router.get('/financial/general-ledger', async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || req.headers['x-tenant-id'] || 'default';
+    const accountCode = String(req.query.account_code || '').trim();
+    const from = req.query.from ? new Date(String(req.query.from)) : null;
+    const to = req.query.to ? new Date(String(req.query.to)) : null;
+
+    const query = {
+      tenant_id: tenantId,
+      status: { $in: ['posted', 'approved'] }
+    };
+    if (from || to) {
+      query.date = {};
+      if (from) query.date.$gte = from;
+      if (to) query.date.$lte = to;
+    }
+
+    const entries = await JournalEntry.find(query).sort({ date: 1, createdAt: 1 }).lean();
+    const rows = [];
+    let runningBalance = 0;
+
+    for (const je of entries) {
+      for (const line of je.lines || []) {
+        const code = String(line.account_code || '').trim();
+        if (!code) continue;
+        if (accountCode && code !== accountCode) continue;
+        const debit = Number(line.debit || 0);
+        const credit = Number(line.credit || 0);
+        runningBalance += debit - credit;
+        rows.push({
+          date: je.date,
+          entry_number: je.entry_number,
+          reference: je.reference || '',
+          description: line.description || je.description || '',
+          account_code: code,
+          debit,
+          credit,
+          running_balance: runningBalance
+        });
+      }
+    }
+
+    const totals = rows.reduce((s, r) => {
+      s.debit += r.debit;
+      s.credit += r.credit;
+      return s;
+    }, { debit: 0, credit: 0 });
+
+    res.json({
+      filters: { account_code: accountCode || null, from, to },
+      rows,
+      totals
+    });
+  } catch (error) {
+    console.error('General Ledger Error:', error);
+    res.status(500).json({ error: 'Failed to generate general ledger report' });
+  }
+});
+
+router.get('/financial/trial-balance/pdf', async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || req.headers['x-tenant-id'] || 'default';
+    const asOf = req.query.asOf ? new Date(String(req.query.asOf)) : new Date();
+
+    const entries = await JournalEntry.find({
+      tenant_id: tenantId,
+      status: { $in: ['posted', 'approved'] },
+      date: { $lte: asOf }
+    }).lean();
+
+    const balances = new Map();
+    for (const je of entries) {
+      for (const line of je.lines || []) {
+        const code = String(line.account_code || '').trim();
+        if (!code) continue;
+        if (!balances.has(code)) balances.set(code, { debit: 0, credit: 0 });
+        const item = balances.get(code);
+        item.debit += Number(line.debit || 0);
+        item.credit += Number(line.credit || 0);
+      }
+    }
+    const accounts = await Account.find({ tenant_id: tenantId }).lean();
+    const accountByCode = new Map(accounts.map((a) => [String(a.code), a]));
+    const lines = Array.from(balances.entries())
+      .map(([account_code, amount]) => ({
+        account_code,
+        account_name: accountByCode.get(account_code)?.name || 'Unknown',
+        debit: Number(amount.debit || 0),
+        credit: Number(amount.credit || 0),
+      }))
+      .sort((a, b) => a.account_code.localeCompare(b.account_code));
+
+    const doc = new (require('pdfkit'))({ margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="trial_balance_${asOf.toISOString().slice(0, 10)}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(16).text('Trial Balance');
+    doc.fontSize(10).text(`As Of: ${asOf.toISOString().slice(0, 10)}`);
+    doc.moveDown();
+    doc.fontSize(9).text('Account Code', 40, doc.y, { width: 100 });
+    doc.text('Account Name', 140, doc.y - 12, { width: 220 });
+    doc.text('Debit', 370, doc.y - 24, { width: 80, align: 'right' });
+    doc.text('Credit', 460, doc.y - 12, { width: 80, align: 'right' });
+    doc.moveDown();
+
+    let totalDebit = 0;
+    let totalCredit = 0;
+    for (const line of lines) {
+      totalDebit += line.debit;
+      totalCredit += line.credit;
+      doc.text(line.account_code, 40, doc.y, { width: 100 });
+      doc.text(line.account_name, 140, doc.y - 12, { width: 220 });
+      doc.text(line.debit.toFixed(2), 370, doc.y - 24, { width: 80, align: 'right' });
+      doc.text(line.credit.toFixed(2), 460, doc.y - 12, { width: 80, align: 'right' });
+      if (doc.y > 760) doc.addPage();
+    }
+    doc.moveDown().font('Helvetica-Bold');
+    doc.text('Totals', 140, doc.y);
+    doc.text(totalDebit.toFixed(2), 370, doc.y - 12, { width: 80, align: 'right' });
+    doc.text(totalCredit.toFixed(2), 460, doc.y - 12, { width: 80, align: 'right' });
+    doc.end();
+  } catch (error) {
+    console.error('Trial Balance PDF Error:', error);
+    res.status(500).json({ error: 'Failed to export trial balance PDF' });
+  }
+});
+
+router.get('/financial/general-ledger/pdf', async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || req.headers['x-tenant-id'] || 'default';
+    const accountCode = String(req.query.account_code || '').trim();
+    const from = req.query.from ? new Date(String(req.query.from)) : null;
+    const to = req.query.to ? new Date(String(req.query.to)) : null;
+    const query = { tenant_id: tenantId, status: { $in: ['posted', 'approved'] } };
+    if (from || to) {
+      query.date = {};
+      if (from) query.date.$gte = from;
+      if (to) query.date.$lte = to;
+    }
+    const entries = await JournalEntry.find(query).sort({ date: 1, createdAt: 1 }).lean();
+    const rows = [];
+    let runningBalance = 0;
+    for (const je of entries) {
+      for (const line of je.lines || []) {
+        const code = String(line.account_code || '').trim();
+        if (!code) continue;
+        if (accountCode && code !== accountCode) continue;
+        const debit = Number(line.debit || 0);
+        const credit = Number(line.credit || 0);
+        runningBalance += debit - credit;
+        rows.push({
+          date: je.date,
+          entry_number: je.entry_number,
+          description: line.description || je.description || '',
+          debit,
+          credit,
+          running_balance: runningBalance
+        });
+      }
+    }
+
+    const doc = new (require('pdfkit'))({ margin: 36, size: 'A4', layout: 'landscape' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="general_ledger.pdf"');
+    doc.pipe(res);
+    doc.fontSize(16).text('General Ledger');
+    doc.fontSize(10).text(`Account: ${accountCode || 'All'}  From: ${from ? from.toISOString().slice(0, 10) : '-'}  To: ${to ? to.toISOString().slice(0, 10) : '-'}`);
+    doc.moveDown();
+    doc.fontSize(9).text('Date', 36, doc.y, { width: 80 });
+    doc.text('Entry', 120, doc.y - 12, { width: 90 });
+    doc.text('Description', 210, doc.y - 12, { width: 280 });
+    doc.text('Debit', 500, doc.y - 12, { width: 80, align: 'right' });
+    doc.text('Credit', 590, doc.y - 12, { width: 80, align: 'right' });
+    doc.text('Balance', 680, doc.y - 12, { width: 80, align: 'right' });
+    doc.moveDown();
+
+    for (const row of rows) {
+      doc.text(new Date(row.date).toISOString().slice(0, 10), 36, doc.y, { width: 80 });
+      doc.text(row.entry_number || '', 120, doc.y - 12, { width: 90 });
+      doc.text(row.description || '', 210, doc.y - 12, { width: 280 });
+      doc.text(row.debit.toFixed(2), 500, doc.y - 12, { width: 80, align: 'right' });
+      doc.text(row.credit.toFixed(2), 590, doc.y - 12, { width: 80, align: 'right' });
+      doc.text(row.running_balance.toFixed(2), 680, doc.y - 12, { width: 80, align: 'right' });
+      if (doc.y > 540) doc.addPage();
+    }
+    doc.end();
+  } catch (error) {
+    console.error('General Ledger PDF Error:', error);
+    res.status(500).json({ error: 'Failed to export general ledger PDF' });
+  }
+});
+
+router.get('/financial/coa-summary', async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || req.headers['x-tenant-id'] || 'default';
+    const accounts = await Account.find({ tenant_id: tenantId }).sort({ code: 1 }).lean();
+    const entries = await JournalEntry.find({
+      tenant_id: tenantId,
+      status: { $in: ['posted', 'approved'] }
+    }).lean();
+
+    const balances = new Map();
+    for (const je of entries) {
+      for (const line of je.lines || []) {
+        const code = String(line.account_code || '').trim();
+        if (!code) continue;
+        if (!balances.has(code)) balances.set(code, { debit: 0, credit: 0 });
+        const item = balances.get(code);
+        item.debit += Number(line.debit || 0);
+        item.credit += Number(line.credit || 0);
+      }
+    }
+
+    const rows = accounts.map((acc) => {
+      const b = balances.get(String(acc.code)) || { debit: 0, credit: 0 };
+      return {
+        code: acc.code,
+        name: acc.name,
+        type: acc.type,
+        is_active: acc.is_active !== false,
+        debit: Number(b.debit || 0),
+        credit: Number(b.credit || 0),
+        net: Number(b.debit || 0) - Number(b.credit || 0),
+      };
+    });
+
+    const byType = rows.reduce((m, row) => {
+      if (!m[row.type]) m[row.type] = { count: 0, net: 0 };
+      m[row.type].count += 1;
+      m[row.type].net += Number(row.net || 0);
+      return m;
+    }, {});
+
+    const totals = rows.reduce((s, row) => {
+      s.debit += Number(row.debit || 0);
+      s.credit += Number(row.credit || 0);
+      return s;
+    }, { debit: 0, credit: 0 });
+
+    res.json({
+      rows,
+      byType,
+      totals,
+      count: rows.length,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('COA Summary Error:', error);
+    res.status(500).json({ error: 'Failed to generate chart of accounts summary' });
+  }
+});
 
 // Get Profit & Loss Statement
 router.get('/financial/pnl', async (req, res) => {
   try {
     const { period = 'month' } = req.query;
     const { startDate, endDate } = getDateRange(period);
+    const includeCompare = String(req.query.compare || 'false').toLowerCase() === 'true';
 
     // In production, these would query actual databases
     // For now, return calculated data based on stored transactions
@@ -70,7 +514,7 @@ router.get('/financial/pnl', async (req, res) => {
     const grossProfit = revenuePipeline.total - expenses.cogs;
     const netProfit = grossProfit - expenses.operating - expenses.other;
 
-    res.json({
+    const payload = {
       period: { start: startStr, end: endStr, type: period },
       revenue: revenuePipeline,
       expenses: expenses,
@@ -81,10 +525,76 @@ router.get('/financial/pnl', async (req, res) => {
         margin: revenuePipeline.total > 0 ? (netProfit / revenuePipeline.total) * 100 : 0
       },
       generatedAt: new Date().toISOString()
-    });
+    };
+
+    if (includeCompare) {
+      const prev = getPreviousDateRange(period, startDate, endDate);
+      const prevStartStr = prev.startDate.toISOString().split('T')[0];
+      const prevEndStr = prev.endDate.toISOString().split('T')[0];
+      const prevRevenue = await calculateRevenue(db, tenantId, prevStartStr, prevEndStr);
+      const prevExpenses = await calculateExpenses(db, tenantId, prevStartStr, prevEndStr);
+      const prevGross = prevRevenue.total - prevExpenses.cogs;
+      const prevNet = prevGross - prevExpenses.operating - prevExpenses.other;
+      payload.comparison = {
+        period: { start: prevStartStr, end: prevEndStr, type: period },
+        revenue: prevRevenue,
+        expenses: prevExpenses,
+        profit: {
+          gross: prevGross,
+          net: prevNet,
+          margin: prevRevenue.total > 0 ? (prevNet / prevRevenue.total) * 100 : 0,
+        }
+      };
+    }
+
+    res.json(payload);
   } catch (error) {
     console.error('P&L Error:', error);
     res.status(500).json({ error: 'Failed to generate P&L report' });
+  }
+});
+
+router.get('/financial/pnl/pdf', async (req, res) => {
+  try {
+    const { period = 'month' } = req.query;
+    const { startDate, endDate } = getDateRange(period);
+    const db = req.app.locals.db;
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const revenuePipeline = await calculateRevenue(db, tenantId, startStr, endStr);
+    const expenses = await calculateExpenses(db, tenantId, startStr, endStr);
+    const grossProfit = revenuePipeline.total - expenses.cogs;
+    const operatingProfit = grossProfit - expenses.operating;
+    const netProfit = operatingProfit - expenses.other;
+    const margin = revenuePipeline.total > 0 ? (netProfit / revenuePipeline.total) * 100 : 0;
+
+    const doc = new (require('pdfkit'))({ margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="profit_loss_${period}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(16).text('Profit & Loss Statement');
+    doc.fontSize(10).text(`Period: ${startStr} to ${endStr}`);
+    doc.moveDown();
+    doc.fontSize(11).text('Revenue');
+    doc.fontSize(10).text(`Total Revenue: ${Number(revenuePipeline.total || 0).toFixed(2)}`, { indent: 14 });
+    doc.moveDown(0.5);
+    doc.fontSize(11).text('Expenses');
+    doc.fontSize(10).text(`COGS: ${Number(expenses.cogs || 0).toFixed(2)}`, { indent: 14 });
+    doc.text(`Operating: ${Number(expenses.operating || 0).toFixed(2)}`, { indent: 14 });
+    doc.text(`Other: ${Number(expenses.other || 0).toFixed(2)}`, { indent: 14 });
+    doc.text(`Total: ${Number(expenses.total || 0).toFixed(2)}`, { indent: 14 });
+    doc.moveDown();
+    doc.font('Helvetica-Bold').text(`Gross Profit: ${grossProfit.toFixed(2)}`);
+    doc.text(`Operating Profit: ${operatingProfit.toFixed(2)}`);
+    doc.text(`Net Profit: ${netProfit.toFixed(2)}`);
+    doc.text(`Net Margin: ${margin.toFixed(2)}%`);
+    doc.end();
+  } catch (error) {
+    console.error('P&L PDF Error:', error);
+    res.status(500).json({ error: 'Failed to export P&L PDF' });
   }
 });
 
@@ -93,13 +603,14 @@ router.get('/financial/balance-sheet', async (req, res) => {
   try {
     const db = req.app.locals.db;
     const tenantId = req.headers['x-tenant-id'] || 'default';
+    const includeCompare = String(req.query.compare || 'false').toLowerCase() === 'true';
 
     // Get current balances from various accounts
     const assets = await calculateAssets(db, tenantId);
     const liabilities = await calculateLiabilities(db, tenantId);
     const equity = await calculateEquity(db, tenantId);
 
-    res.json({
+    const payload = {
       asOf: new Date().toISOString(),
       assets: {
         current: assets.current,
@@ -117,10 +628,79 @@ router.get('/financial/balance-sheet', async (req, res) => {
         total: equity.capital + equity.retained
       },
       balanced: (assets.current + assets.fixed) === (liabilities.current + liabilities.longTerm + equity.capital + equity.retained)
-    });
+    };
+
+    if (includeCompare) {
+      const previousAssets = await calculateAssets(db, tenantId);
+      const previousLiabilities = await calculateLiabilities(db, tenantId);
+      const previousEquity = await calculateEquity(db, tenantId);
+      payload.comparison = {
+        asOf: new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString(),
+        assets: {
+          current: previousAssets.current,
+          fixed: previousAssets.fixed,
+          total: previousAssets.current + previousAssets.fixed
+        },
+        liabilities: {
+          current: previousLiabilities.current,
+          longTerm: previousLiabilities.longTerm,
+          total: previousLiabilities.current + previousLiabilities.longTerm
+        },
+        equity: {
+          capital: previousEquity.capital,
+          retained: previousEquity.retained,
+          total: previousEquity.capital + previousEquity.retained
+        }
+      };
+    }
+
+    res.json(payload);
   } catch (error) {
     console.error('Balance Sheet Error:', error);
     res.status(500).json({ error: 'Failed to generate balance sheet' });
+  }
+});
+
+router.get('/financial/balance-sheet/pdf', async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const assets = await calculateAssets(db, tenantId);
+    const liabilities = await calculateLiabilities(db, tenantId);
+    const equity = await calculateEquity(db, tenantId);
+    const assetsTotal = assets.current + assets.fixed;
+    const liabilitiesTotal = liabilities.current + liabilities.longTerm;
+    const equityTotal = equity.capital + equity.retained;
+
+    const doc = new (require('pdfkit'))({ margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="balance_sheet.pdf"');
+    doc.pipe(res);
+
+    doc.fontSize(16).text('Balance Sheet');
+    doc.fontSize(10).text(`As Of: ${new Date().toISOString().slice(0, 10)}`);
+    doc.moveDown();
+    doc.fontSize(11).text('Assets');
+    doc.fontSize(10).text(`Current Assets: ${Number(assets.current || 0).toFixed(2)}`, { indent: 14 });
+    doc.text(`Fixed Assets: ${Number(assets.fixed || 0).toFixed(2)}`, { indent: 14 });
+    doc.font('Helvetica-Bold').text(`Total Assets: ${Number(assetsTotal || 0).toFixed(2)}`, { indent: 14 });
+    doc.moveDown();
+    doc.font('Helvetica').fontSize(11).text('Liabilities');
+    doc.fontSize(10).text(`Current Liabilities: ${Number(liabilities.current || 0).toFixed(2)}`, { indent: 14 });
+    doc.text(`Long-Term Liabilities: ${Number(liabilities.longTerm || 0).toFixed(2)}`, { indent: 14 });
+    doc.font('Helvetica-Bold').text(`Total Liabilities: ${Number(liabilitiesTotal || 0).toFixed(2)}`, { indent: 14 });
+    doc.moveDown();
+    doc.font('Helvetica').fontSize(11).text('Equity');
+    doc.fontSize(10).text(`Capital: ${Number(equity.capital || 0).toFixed(2)}`, { indent: 14 });
+    doc.text(`Retained Earnings: ${Number(equity.retained || 0).toFixed(2)}`, { indent: 14 });
+    doc.font('Helvetica-Bold').text(`Total Equity: ${Number(equityTotal || 0).toFixed(2)}`, { indent: 14 });
+    doc.moveDown();
+    doc.text(`Liabilities + Equity: ${(liabilitiesTotal + equityTotal).toFixed(2)}`);
+    doc.text(`Balanced: ${assetsTotal === liabilitiesTotal + equityTotal ? 'Yes' : 'No'}`);
+    doc.end();
+  } catch (error) {
+    console.error('Balance Sheet PDF Error:', error);
+    res.status(500).json({ error: 'Failed to export balance sheet PDF' });
   }
 });
 
@@ -129,6 +709,7 @@ router.get('/financial/cash-flow', async (req, res) => {
   try {
     const { period = 'month' } = req.query;
     const { startDate, endDate } = getDateRange(period);
+    const includeCompare = String(req.query.compare || 'false').toLowerCase() === 'true';
 
     const db = req.app.locals.db;
     const tenantId = req.headers['x-tenant-id'] || 'default';
@@ -138,17 +719,64 @@ router.get('/financial/cash-flow', async (req, res) => {
 
     const cashFlow = await calculateCashFlow(db, tenantId, startStr, endStr);
 
-    res.json({
+    const payload = {
       period: { start: startStr, end: endStr, type: period },
       operating: cashFlow.operating,
       investing: cashFlow.investing,
       financing: cashFlow.financing,
       netChange: cashFlow.operating + cashFlow.investing + cashFlow.financing,
       generatedAt: new Date().toISOString()
-    });
+    };
+
+    if (includeCompare) {
+      const prev = getPreviousDateRange(period, startDate, endDate);
+      const prevStartStr = prev.startDate.toISOString().split('T')[0];
+      const prevEndStr = prev.endDate.toISOString().split('T')[0];
+      const prevCashFlow = await calculateCashFlow(db, tenantId, prevStartStr, prevEndStr);
+      payload.comparison = {
+        period: { start: prevStartStr, end: prevEndStr, type: period },
+        operating: prevCashFlow.operating,
+        investing: prevCashFlow.investing,
+        financing: prevCashFlow.financing,
+        netChange: prevCashFlow.operating + prevCashFlow.investing + prevCashFlow.financing,
+      };
+    }
+
+    res.json(payload);
   } catch (error) {
     console.error('Cash Flow Error:', error);
     res.status(500).json({ error: 'Failed to generate cash flow report' });
+  }
+});
+
+router.get('/financial/cash-flow/pdf', async (req, res) => {
+  try {
+    const { period = 'month' } = req.query;
+    const { startDate, endDate } = getDateRange(period);
+    const db = req.app.locals.db;
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    const cashFlow = await calculateCashFlow(db, tenantId, startStr, endStr);
+    const netChange = Number(cashFlow.operating || 0) + Number(cashFlow.investing || 0) + Number(cashFlow.financing || 0);
+
+    const doc = new (require('pdfkit'))({ margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="cash_flow_${period}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(16).text('Cash Flow Statement');
+    doc.fontSize(10).text(`Period: ${startStr} to ${endStr}`);
+    doc.moveDown();
+    doc.fontSize(10).text(`Operating Cash Flow: ${Number(cashFlow.operating || 0).toFixed(2)}`);
+    doc.text(`Investing Cash Flow: ${Number(cashFlow.investing || 0).toFixed(2)}`);
+    doc.text(`Financing Cash Flow: ${Number(cashFlow.financing || 0).toFixed(2)}`);
+    doc.moveDown();
+    doc.font('Helvetica-Bold').text(`Net Change In Cash: ${netChange.toFixed(2)}`);
+    doc.end();
+  } catch (error) {
+    console.error('Cash Flow PDF Error:', error);
+    res.status(500).json({ error: 'Failed to export cash flow PDF' });
   }
 });
 
@@ -1325,4 +1953,3 @@ router.post('/templates', async (req, res) => {
     res.status(500).json({ error: 'Failed to create report template' });
   }
 });
-

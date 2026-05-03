@@ -150,6 +150,42 @@ async function seedCompleteData() {
             threshold: '> 10000',
             flow: [{ role: 'admin', action: 'APPROVE' }]
         });
+        // Default workflows for production readiness
+        await ApprovalWorkflow.create({
+            name: 'Purchase Bill Approval',
+            module: 'procurement',
+            document_type: 'bill',
+            title: 'Purchase Bill Approval',
+            description: 'Finance approval for supplier bills before posting',
+            is_active: true,
+            steps: [
+                { step_number: 1, name: 'Finance Approval', approver_type: 'role', approver_role: 'FinanceManager' }
+            ]
+        });
+
+        await ApprovalWorkflow.create({
+            name: 'Sales Invoice Approval',
+            module: 'sales',
+            document_type: 'invoice',
+            title: 'Sales Invoice Approval',
+            description: 'Approval for high-value sales invoices',
+            is_active: true,
+            steps: [
+                { step_number: 1, name: 'Finance Approval', approver_type: 'role', approver_role: 'FinanceManager' }
+            ]
+        });
+
+        await ApprovalWorkflow.create({
+            name: 'Payment Voucher Approval',
+            module: 'finance',
+            document_type: 'payment_voucher',
+            title: 'Payment Voucher Approval',
+            description: 'Finance approval for outgoing payments',
+            is_active: true,
+            steps: [
+                { step_number: 1, name: 'Finance Approval', approver_type: 'role', approver_role: 'FinanceManager' }
+            ]
+        });
 
         // 10. Seed Fixed Assets
         await FixedAsset.create({

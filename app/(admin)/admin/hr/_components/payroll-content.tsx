@@ -33,11 +33,14 @@ import {
   Bitcoin
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createSalaryStructure, generatePayroll, postPayrollToFinance, previewPayroll, submitPayrollForApproval, approvePayroll, rejectPayroll, finalizePayroll, auditFebruaryPayroll2026, getDeletedPayrolls, restorePayroll } from '@/lib/api';
+import { createSalaryStructure, generatePayroll, postPayrollToFinance, previewPayroll, submitPayrollForApproval, approvePayroll, rejectPayroll, finalizePayroll, auditFebruaryPayroll2026, getDeletedPayrolls, restorePayroll, sendPayslipEmail, sendAllPayslipEmails } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/lib/settings-context';
 import type { Employee, SalaryStructure, Payroll } from '@/lib/db/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { generatePayslipPDF } from '@/lib/pdf-generator';
+
+import { generateSIFContent, calculateUAE_EOSB } from '../_lib/wps-export';
 
 interface PayrollContentProps {
   employees: Employee[];
@@ -66,6 +69,17 @@ export function PayrollContent({ employees, salaryStructures, payrolls, onRefres
   const [payrollPreview, setPayrollPreview] = useState<any>(null);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  
+  // Gratuity Estimator State
+  const [gratuityOpen, setGratuityOpen] = useState(false);
+  const [gratuityCalc, setGratuityCalc] = useState({
+    basic: 20000,
+    years: 5,
+    type: 'limited' as 'limited' | 'unlimited',
+    reason: 'termination' as 'resignation' | 'termination'
+  });
+  
+  const estimatedGratuity = calculateUAE_EOSB(gratuityCalc.basic, gratuityCalc.years, gratuityCalc.type, gratuityCalc.reason);
   
   // Calculate preview fields for Define Structure modal
   const [salaryFields, setSalaryFields] = useState({
@@ -225,6 +239,15 @@ export function PayrollContent({ employees, salaryStructures, payrolls, onRefres
     }
     finally { setApproving(null); }
   };
+
+  const handleDownloadPayslip = async (payroll: Payroll) => {
+    const firstLine = payroll.lines?.[0];
+    if (!firstLine) {
+      toast.error('No payslip lines available');
+      return;
+    }
+    await generatePayslipPDF({ payroll, line: firstLine, currency: settings.currency });
+  };
   
   const filteredStructures = salaryStructures.filter(s => 
     s.is_current && 
@@ -252,6 +275,10 @@ export function PayrollContent({ employees, salaryStructures, payrolls, onRefres
           <p className="text-xs text-muted-foreground font-medium">Salary Disbursement & Compliance</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setGratuityOpen(true)} className="h-9 text-xs font-bold uppercase tracking-widest gap-2">
+            <Calculator className="h-3.5 w-3.5 text-primary" /> Gratuity Estimator
+          </Button>
+
           <Dialog open={salaryOpen} onOpenChange={setSalaryOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 gap-2">
@@ -908,7 +935,7 @@ export function PayrollContent({ employees, salaryStructures, payrolls, onRefres
                     )}
                     
                     {(p.status === 'posted' || p.status === 'paid') && (
-                      <Button variant="outline" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
+                      <Button variant="outline" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" onClick={() => handleDownloadPayslip(p)}>
                         <Download className="h-3.5 w-3.5" />
                       </Button>
                     )}
@@ -959,6 +986,75 @@ export function PayslipBrowser({ payroll }: { payroll: Payroll }) {
     }
   }, [payroll.lines]);
 
+  const handleDownloadSelectedPayslip = async () => {
+    if (!selectedLine) {
+      toast.error('Select a staff member first');
+      return;
+    }
+    await generatePayslipPDF({ payroll, line: selectedLine, currency: settings.currency });
+  };
+
+  const handleEmailSelectedPayslip = async () => {
+    if (!selectedLine?.employee?.id) {
+      toast.error('Select staff member first');
+      return;
+    }
+    try {
+      await sendPayslipEmail(payroll.id, selectedLine.employee.id);
+      toast.success('Payslip email sent');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send payslip email');
+    }
+  };
+
+  const handleEmailAllPayslips = async () => {
+    try {
+      const result = await sendAllPayslipEmails(payroll.id);
+      toast.success(result?.message || 'Payslip emails processed');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send payslip emails');
+    }
+  };
+
+  const handleDownloadWPS = () => {
+    try {
+      const records = (payroll.lines || []).map(line => {
+        const pd = paymentDetails.get(line.employee?.id || '');
+        return {
+          employee_id: line.employee?.employee_id || 'N/A',
+          employee_name: line.employee?.name || 'N/A',
+          iban: pd?.iban || '',
+          agent_id: pd?.bank_name?.substring(0, 5).toUpperCase() || 'AGENT',
+          fixed_salary: Number(line.basic_pay || 0),
+          variable_salary: Number(line.overtime_pay || 0) + Number(line.allowances || 0),
+          days_off: 0
+        };
+      });
+
+      const [year, month] = payroll.month.split('-').map(Number);
+      const sif = generateSIFContent({
+        employer_id: settings.companyRegNumber || '123456',
+        bank_code: settings.bankCode || 'CB-001',
+        file_creation_date: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+        file_creation_time: new Date().toTimeString().slice(0, 5).replace(/:/g, ''),
+        salary_month: `${String(month).padStart(2, '0')}${year}`,
+        total_salary: Number(payroll.total_amount || 0),
+        total_records: records.length,
+        currency: settings.currency || 'AED'
+      }, records);
+
+      const blob = new Blob([sif], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WPS_${payroll.month}.sif`;
+      a.click();
+      toast.success('WPS SIF file generated');
+    } catch (err) {
+      toast.error('Failed to generate WPS file');
+    }
+  };
+
   return (
     <div className="flex flex-col h-[80vh] bg-card">
       <div className="p-6 border-b bg-muted flex items-center justify-between">
@@ -967,11 +1063,20 @@ export function PayslipBrowser({ payroll }: { payroll: Payroll }) {
           <p className="text-xs font-medium text-muted-foreground">Electronic Disbursement Records</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium border-emerald-500/50 hover:bg-emerald-50 text-emerald-700" onClick={handleDownloadWPS}>
+            <Landmark className="h-3 w-3" /> WPS SIF
+          </Button>
           <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium">
             <Printer className="h-3 w-3" /> Print Batch
           </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium">
+          <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium" onClick={handleEmailAllPayslips}>
             <Mail className="h-3 w-3" /> Email All
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium" onClick={handleEmailSelectedPayslip}>
+            <Mail className="h-3 w-3" /> Email Selected
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium" onClick={handleDownloadSelectedPayslip}>
+            <Download className="h-3 w-3" /> Download Selected
           </Button>
         </div>
       </div>

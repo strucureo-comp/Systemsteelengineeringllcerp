@@ -462,7 +462,7 @@ async function analyzeScrap(tenantId, startDate, endDate) {
         });
 
         const topScrapItems = Object.values(itemScrap)
-            .sort((a: any, b: any) => b.quantity - a.quantity)
+            .sort((a, b) => b.quantity - a.quantity)
             .slice(0, 10);
 
         return {

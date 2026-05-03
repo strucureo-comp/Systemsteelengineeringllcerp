@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getPurchaseOrders, getVendors } from '@/lib/api';
+import { getPurchaseOrders, getVendors, sendPurchaseOrderEmail } from '@/lib/api';
 import { DashboardShell } from '@/components/shared/layout/dashboard-shell';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,18 @@ import {
     Search,
     RefreshCcw,
     ChevronRight,
-    ChevronLeft
+    ChevronLeft,
+    Mail,
+    FilePlus2,
+    Download
 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { PurchaseOrder, Vendor } from '@/lib/db/types';
 import { cn } from '@/lib/utils';
 import { PurchasesNav } from '../_components/purchases-nav';
 import { useCompanySettings } from '@/lib/hooks/use-company-settings';
 import { formatCurrency } from '@/lib/utils/currency';
+import { generatePurchaseOrderPDF } from '@/lib/pdf-generator';
 
 export default function PurchaseOrdersPage() {
     const router = useRouter();
@@ -50,6 +55,14 @@ export default function PurchaseOrdersPage() {
     };
 
     const fmt = (n: number) => formatCurrency(n, baseCurrency);
+
+    const handleEmailPO = async (order: PurchaseOrder) => {
+        const to = window.prompt(`Enter recipient email for ${order.po_number}`);
+        if (!to) return;
+        const result = await sendPurchaseOrderEmail(order.id, to);
+        if (result?.success) toast.success('Purchase order email sent');
+        else toast.error('Failed to send purchase order email');
+    };
 
     const filteredOrders = orders.filter(o => 
         o.po_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -122,9 +135,20 @@ export default function PurchaseOrdersPage() {
                                             <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 rounded-full border-none bg-muted text-muted-foreground">{order.status}</Badge>
                                         </td>
                                         <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-primary" onClick={() => generatePurchaseOrderPDF(order)} title="Download PDF">
+                                                <Download size={16} />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-blue-600" onClick={() => handleEmailPO(order)} title="Email PO">
+                                                <Mail size={16} />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-emerald-600" onClick={() => router.push(`/admin/purchases/bills/new?po_id=${order.id}`)} title="Create Bill">
+                                                <FilePlus2 size={16} />
+                                            </Button>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-primary" onClick={() => router.push(`/admin/purchases/orders/${order.id}`)}>
                                                 <ChevronRight size={16} />
                                             </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

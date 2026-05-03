@@ -28,9 +28,12 @@ export default function ReportsPage() {
       icon: DollarSign,
       description: 'P&L, Balance Sheet, Cash Flow, Financial Ratios',
       reports: [
-        { name: 'Profit & Loss Statement', path: '/admin/finance/reports', frequency: 'Monthly' },
-        { name: 'Balance Sheet', path: '/admin/finance/reports', frequency: 'Monthly' },
-        { name: 'Cash Flow Statement', path: '/admin/finance/reports', frequency: 'Monthly' },
+        { name: 'Profit & Loss Statement', path: '/admin/reports/profit-loss', frequency: 'Monthly' },
+        { name: 'Balance Sheet', path: '/admin/reports/balance-sheet', frequency: 'Monthly' },
+        { name: 'Cash Flow Statement', path: '/admin/reports/cash-flow', frequency: 'Monthly' },
+        { name: 'Trial Balance', path: '/admin/reports/trial-balance', frequency: 'Monthly' },
+        { name: 'General Ledger', path: '/admin/reports/general-ledger', frequency: 'Monthly' },
+        { name: 'Chart of Accounts Summary', path: '/admin/reports/chart-of-accounts', frequency: 'Monthly' },
         { name: 'Financial Ratios Analysis', path: '/admin/finance/reports', frequency: 'Quarterly' },
         { name: 'Budget vs Actual', path: '/admin/finance/reports', frequency: 'Monthly' }
       ],

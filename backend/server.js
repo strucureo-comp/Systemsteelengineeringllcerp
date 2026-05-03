@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 const mongoSanitize = require('express-mongo-sanitize');
 const xssClean = require('xss-clean');
 const helmet = require('helmet');
@@ -89,8 +90,8 @@ const authLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-        // Rate limit per IP for auth routes
-        return req.ip;
+        // Rate limit per IP for auth routes (IPv6-safe)
+        return ipKeyGenerator(req);
     }
 });
 
@@ -102,9 +103,8 @@ const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-        // Rate limit per tenant, not per IP
-        // Falls back to IP if not authenticated
-        return req.user?.tenant_id || req.ip;
+        // Rate limit per tenant, not per IP. Falls back to IPv6-safe IP key.
+        return req.user?.tenant_id || ipKeyGenerator(req);
     },
     skip: (req) => {
         // Skip rate limiting for superadmin
@@ -219,6 +219,38 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Basic metrics endpoint for monitoring (basic, no auth)
+app.get('/api/metrics', async (req, res) => {
+    try {
+        const mem = process.memoryUsage();
+        const uptime = process.uptime();
+        const os = require('os');
+        const mongoose = require('mongoose');
+        const ApprovalRequest = require('./models/ApprovalEngine').ApprovalRequest;
+
+        const pendingApprovals = await ApprovalRequest.countDocuments({ status: 'pending' });
+        const usersCount = await mongoose.model('User').countDocuments();
+
+        res.json({
+            status: 'ok',
+            uptime_seconds: Math.round(uptime),
+            memory: {
+                rss: mem.rss,
+                heapTotal: mem.heapTotal,
+                heapUsed: mem.heapUsed,
+                external: mem.external
+            },
+            pendingApprovals,
+            usersCount,
+            nodeVersion: process.version,
+            platform: os.platform(),
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to compute metrics', detail: err.message });
+    }
+});
+
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
@@ -311,10 +343,14 @@ async function start() {
     });
 }
 
-start().catch(err => {
-    console.error('[Server] Failed to start:', err);
-    process.exit(1);
-});
+module.exports = app;
+
+if (require.main === module) {
+    start().catch(err => {
+        console.error('[Server] Failed to start:', err);
+        process.exit(1);
+    });
+}
 
 // ============================================================================
 // UNHANDLED REJECTION HANDLER

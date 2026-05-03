@@ -363,17 +363,41 @@ export const generatePurchaseOrderPDF = async (purchaseOrder: any) => {
   const doc = setupDocument();
   const primaryRgb = hexToRgb(settings.primaryColor) || { r: 0, g: 0, b: 0 };
 
-  let startY = await drawHeader(doc, "CONFIRMATORY PURCHASE ORDER", settings, purchaseOrder, 'PO');
-  const vendor = { name: purchaseOrder.supplierName, address: purchaseOrder.supplierAddress, phone: purchaseOrder.supplierPhone, trn: purchaseOrder.supplierVat };
+  // Normalize data for PDF generator
+  const normalizedPO = {
+    ...purchaseOrder,
+    number: purchaseOrder.number || purchaseOrder.po_number || 'N/A',
+    date: purchaseOrder.date || (purchaseOrder.created_at ? new Date(purchaseOrder.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+    items: purchaseOrder.items || purchaseOrder.lines || [],
+    total: purchaseOrder.total || purchaseOrder.total_amount || 0,
+    subtotal: purchaseOrder.subtotal || (purchaseOrder.total_amount - (purchaseOrder.taxAmount || 0)),
+  };
+
+  let startY = await drawHeader(doc, "CONFIRMATORY PURCHASE ORDER", settings, normalizedPO, 'PO');
+
+  // Vendor normalization
+  const vendor = { 
+    name: purchaseOrder.supplierName || purchaseOrder.vendor?.name || purchaseOrder.vendor_id?.legal_name || 'N/A', 
+    address: purchaseOrder.supplierAddress || purchaseOrder.vendor?.address || 'N/A', 
+    phone: purchaseOrder.supplierPhone || purchaseOrder.vendor?.phone || 'N/A', 
+    trn: purchaseOrder.supplierVat || purchaseOrder.vendor?.vat_no || purchaseOrder.vendor?.tax_id || 'N/A' 
+  };
+
   startY = drawRecipientBlock(doc, startY, "VENDOR", "SHIP TO", vendor, { name: settings.companyName, address: settings.companyAddress });
-  
+
   autoTable(doc, {
     startY: startY,
     head: [['SL.No', 'Description', 'Project', 'Remarks', 'Date Req.', 'UOM', 'Qty', 'Unit Price', 'Amount']],
-    body: purchaseOrder.items?.map((item: any, i: number) => [
-      i + 1, `${item.itemCode ? `[${item.itemCode}]\n` : ''}${item.description}`, purchaseOrder.project || '-', item.remarks || '', purchaseOrder.expectedDate, item.unit || 'EA', item.quantity,
-      formatCurrencyRaw(item.unitPrice, settings.currency),
-      formatCurrencyRaw(item.total, settings.currency)
+    body: normalizedPO.items?.map((item: any, i: number) => [
+      i + 1, 
+      `${item.itemCode ? `[${item.itemCode}]\n` : ''}${item.description || ''}`, 
+      purchaseOrder.project || '-', 
+      item.remarks || '', 
+      purchaseOrder.expectedDate || purchaseOrder.delivery_date || '-', 
+      item.unit || 'EA', 
+      item.quantity || 0,
+      formatCurrencyRaw(item.unitPrice || item.unit_price || 0, settings.currency),
+      formatCurrencyRaw(item.total || item.amount || item.total_amount || 0, settings.currency)
     ]),
     theme: 'grid',
     headStyles: { fillColor: [primaryRgb.r, primaryRgb.g, primaryRgb.b] },
@@ -381,17 +405,16 @@ export const generatePurchaseOrderPDF = async (purchaseOrder: any) => {
   });
 
   let finalY = (doc as any).lastAutoTable.finalY + 10;
-  finalY = drawFinancialSummary(doc, purchaseOrder, settings, finalY);
+  finalY = drawFinancialSummary(doc, normalizedPO, settings, finalY);
   finalY = drawTerms(doc, finalY, settings);
-  
+
   // Stamp
   await drawCompanyStamp(doc, PAGE_HEIGHT - 45, settings);
-  
-  drawSignatories(doc, finalY, settings);
-  drawFooter(doc, settings, purchaseOrder);
-  doc.save(`PO_${purchaseOrder.number}.pdf`);
-};
 
+  drawSignatories(doc, finalY, settings);
+  drawFooter(doc, settings, normalizedPO);
+  doc.save(`PO_${normalizedPO.number}.pdf`);
+};
 export const generateProformaInvoicePDF = async (proforma: any) => {
   const settings = getPDFSettings();
   const doc = setupDocument();
@@ -666,6 +689,50 @@ export const generateReceiptVoucherPDF = async (receiptVoucher: any) => {
   await drawCompanyStamp(doc, PAGE_HEIGHT - 35, settings);
   drawFooter(doc, settings, receiptVoucher);
   doc.save(`RV_${receiptVoucher.number}.pdf`);
+};
+
+export const generatePayslipPDF = async (payload: { payroll: any; line: any; currency?: string }) => {
+  const settings = getPDFSettings();
+  const doc = setupDocument();
+  const { payroll, line } = payload;
+  const currency = payload.currency || settings.currency || 'AED';
+  const employeeName = line?.employee?.name || line?.employee_name || 'Employee';
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('PAYSLIP', PAGE_MARGIN, PAGE_MARGIN + 6);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`${settings.companyName}`, PAGE_MARGIN, PAGE_MARGIN + 12);
+  doc.text(`Payroll Month: ${payroll?.month || '-'}`, PAGE_MARGIN, PAGE_MARGIN + 17);
+  doc.text(`Payslip No: ${line?.payslip_number || '-'}`, PAGE_MARGIN, PAGE_MARGIN + 22);
+  doc.text(`Employee: ${employeeName}`, PAGE_MARGIN, PAGE_MARGIN + 27);
+
+  autoTable(doc, {
+    startY: PAGE_MARGIN + 36,
+    head: [['Component', 'Amount']],
+    body: [
+      ['Basic Pay', formatCurrencyRaw(Number(line?.basic_pay || 0), currency)],
+      ['Overtime Pay', formatCurrencyRaw(Number(line?.overtime_pay || 0), currency)],
+      ['Gross Pay', formatCurrencyRaw(Number(line?.gross_pay || 0), currency)],
+      ['Deductions', formatCurrencyRaw(Number(line?.deductions || 0), currency)],
+      ['Net Pay', formatCurrencyRaw(Number(line?.net_pay || 0), currency)],
+    ],
+    theme: 'grid',
+    headStyles: { fillColor: [30, 30, 30] },
+    columnStyles: {
+      1: { halign: 'right' },
+    },
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(9);
+  doc.text(`Generated On: ${new Date().toISOString().split('T')[0]}`, PAGE_MARGIN, finalY);
+  drawFooter(doc, settings, { date: new Date().toISOString().split('T')[0], createdBy: 'HR' });
+
+  const payslipNo = line?.payslip_number || `${payroll?.month || 'PAY'}-${String(line?.id || 'line')}`;
+  doc.save(`Payslip_${payslipNo}.pdf`);
 };
 
 // ============= ALIASES FOR BACKWARD COMPATIBILITY =============

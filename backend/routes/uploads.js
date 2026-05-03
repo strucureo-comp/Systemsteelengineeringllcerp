@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const { UPLOAD_ROOT } = require('../services/storageService');
-const { authenticate } = require('../middleware/auth');
+const { auth: authenticate } = require('../middleware/auth');
 
 /**
  * Protected file serving route

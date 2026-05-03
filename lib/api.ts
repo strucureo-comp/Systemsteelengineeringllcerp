@@ -859,12 +859,42 @@ export async function finalizePayroll(id: string) {
     throw new Error('Failed to finalize payroll');
 }
 
+export async function getMyPayslips(): Promise<any[]> {
+    try {
+        const res = await fetch(`${API_BASE}/hrms/my-payslips`, { headers: authHeaders() });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] getMyPayslips error:', e); }
+    return [];
+}
+
 export async function getPendingPayrollApprovals() {
     try {
         const res = await fetch(`${API_BASE}/hrms/payrolls/pending`, { headers: authHeaders() });
         if (res.ok) return res.json();
     } catch (e) { console.warn('[API] getPendingPayrollApprovals error:', e); }
     return [];
+}
+
+export async function sendPayslipEmail(payrollId: string, employeeId: string) {
+    try {
+        const res = await fetch(`${API_BASE}/hrms/payrolls/${payrollId}/payslips/${employeeId}/send-email`, {
+            method: 'POST',
+            headers: authHeaders()
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] sendPayslipEmail error:', e); }
+    throw new Error('Failed to send payslip email');
+}
+
+export async function sendAllPayslipEmails(payrollId: string) {
+    try {
+        const res = await fetch(`${API_BASE}/hrms/payrolls/${payrollId}/payslips/send-email-all`, {
+            method: 'POST',
+            headers: authHeaders()
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] sendAllPayslipEmails error:', e); }
+    throw new Error('Failed to send payslip emails');
 }
 
 export async function getSalaryStructures(empId?: string) {
@@ -1496,6 +1526,27 @@ export async function getPurchaseOrder(id: string): Promise<any | null> {
     } catch (e) { console.warn('[API] getPurchaseOrder error:', e); }
     return null;
 }
+export async function sendPurchaseOrderEmail(id: string, to: string): Promise<any | null> {
+    try {
+        const res = await fetch(`${API_BASE}/procurement/orders/${id}/send-email`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ to })
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] sendPurchaseOrderEmail error:', e); }
+    return null;
+}
+export async function cancelPurchaseOrder(id: string): Promise<any | null> {
+    try {
+        const res = await fetch(`${API_BASE}/procurement/orders/${id}/cancel`, {
+            method: 'POST',
+            headers: authHeaders(),
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] cancelPurchaseOrder error:', e); }
+    return null;
+}
 export async function createPurchaseOrder(data: any) {
     try {
         const res = await fetch(`${API_BASE}/procurement/orders`, {
@@ -1533,6 +1584,38 @@ export async function getVendorBills(): Promise<any[]> {
     } catch (e) { console.warn('[API] getVendorBills error:', e); }
     return [];
 }
+export async function submitVendorBill(id: string): Promise<any | null> {
+    try {
+        const res = await fetch(`${API_BASE}/payables/bills/${id}/submit`, {
+            method: 'POST',
+            headers: authHeaders()
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] submitVendorBill error:', e); }
+    return null;
+}
+export async function approveVendorBill(id: string, comments = ''): Promise<any | null> {
+    try {
+        const res = await fetch(`${API_BASE}/payables/bills/${id}/approve`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ comments })
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] approveVendorBill error:', e); }
+    return null;
+}
+export async function rejectVendorBill(id: string, reason: string): Promise<any | null> {
+    try {
+        const res = await fetch(`${API_BASE}/payables/bills/${id}/reject`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ reason })
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] rejectVendorBill error:', e); }
+    return null;
+}
 export async function createVendorBill(data: any) {
     try {
         const res = await fetch(`${API_BASE}/payables/bills`, {
@@ -1560,6 +1643,29 @@ export async function createVendorPayment(data: any) {
         });
         if (res.ok) return res.json();
     } catch (e) { console.warn('[API] createVendorPayment error:', e); }
+    return null;
+}
+export async function getVendorStatement(vendorId: string, opts: { from?: string; to?: string } = {}) {
+    try {
+        const params = new URLSearchParams();
+        if (opts.from) params.set('from', opts.from);
+        if (opts.to) params.set('to', opts.to);
+        const query = params.toString();
+        const res = await fetch(`${API_BASE}/payables/vendors/${vendorId}/statement${query ? `?${query}` : ''}`, { headers: authHeaders() });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] getVendorStatement error:', e); }
+    return null;
+}
+
+export async function getCustomerStatement(customerId: string, opts: { from?: string; to?: string } = {}) {
+    try {
+        const params = new URLSearchParams();
+        if (opts.from) params.set('from', opts.from);
+        if (opts.to) params.set('to', opts.to);
+        const query = params.toString();
+        const res = await fetch(`${API_BASE}/receivables/customers/${customerId}/statement${query ? `?${query}` : ''}`, { headers: authHeaders() });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] getCustomerStatement error:', e); }
     return null;
 }
 
@@ -2170,6 +2276,26 @@ export async function getVATReturns() { try { return await tcFetch('/vat-returns
 export async function createVATReturn(data: any) { return tcFetch('/vat-returns', { method: 'POST', body: JSON.stringify(data) }); }
 export async function updateVATReturn(id: string, data: any) { return tcFetch(`/vat-returns/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
 export async function fileVATReturn(id: string, data: any) { return tcFetch(`/vat-returns/${id}/file`, { method: 'POST', body: JSON.stringify(data) }); }
+export async function autoPopulateVATFromGL(params: { periodStart: string; periodEnd: string; outputAccount?: string; inputAccount?: string }) {
+    const q = new URLSearchParams({
+        periodStart: params.periodStart,
+        periodEnd: params.periodEnd,
+        outputAccount: params.outputAccount || '2100',
+        inputAccount: params.inputAccount || '1400',
+    });
+    return tcFetch(`/vat-returns/auto-populate?${q.toString()}`);
+}
+export async function downloadVATReturnPDF(id: string) {
+    const res = await fetch(`${API_BASE}/tax-center/vat-returns/${id}/pdf`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to download VAT return PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vat_return_${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
 // Corporate Tax Filings API
 export async function getCorporateTaxFilings(year?: string) { try { return await tcFetch(`/corporate-tax${year ? `?year=${year}` : ''}`); } catch { return []; } }
@@ -2177,6 +2303,17 @@ export async function createCorporateTaxFiling(data: any) { return tcFetch('/cor
 export async function updateCorporateTaxFiling(id: string, data: any) { return tcFetch(`/corporate-tax/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
 export async function fileCorporateTaxFiling(id: string, data: any) { return tcFetch(`/corporate-tax/${id}/file`, { method: 'POST', body: JSON.stringify(data) }); }
 export async function requestCorporateTaxAssessment(id: string) { return tcFetch(`/corporate-tax/${id}/request-assessment`, { method: 'POST', body: JSON.stringify({}) }); }
+export async function downloadCorporateTaxPDF(id: string) {
+    const res = await fetch(`${API_BASE}/tax-center/corporate-tax/${id}/pdf`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to download corporate tax PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `corporate_tax_${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
 // ====================================================================
 // RECEIVABLES API (REAL BACKEND)
