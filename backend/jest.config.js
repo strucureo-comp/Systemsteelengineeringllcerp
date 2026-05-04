@@ -1,5 +1,9 @@
-module.exports = Object.assign(require('./jest.config.cjs'), {
+module.exports = {
     testEnvironment: 'node',
+    transform: {
+        '^.+\\.js$': 'babel-jest'
+    },
+    transformIgnorePatterns: ['<rootDir>/node_modules/(?!(uuid)/)'],
     coverageDirectory: 'coverage',
     collectCoverageFrom: [
         'routes/**/*.js',
@@ -15,4 +19,4 @@ module.exports = Object.assign(require('./jest.config.cjs'), {
     verbose: true,
     testTimeout: 10000,
     setupFilesAfterEnv: ['<rootDir>/tests/setup.js']
-});
+};

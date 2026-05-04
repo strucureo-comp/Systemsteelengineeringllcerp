@@ -75,9 +75,18 @@ app.use(helmet({
 }));
 
 // 2. CORS
+const corsOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:4000',
+    process.env.CORS_ORIGIN
+].filter(Boolean);
+
 app.use(cors({ 
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000', 
-    credentials: true 
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // 3. Rate Limiters - Define before routes

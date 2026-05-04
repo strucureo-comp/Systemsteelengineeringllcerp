@@ -23,7 +23,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23007ACC'/%3E%3Ctext x='50%25' y='50%25' font-size='8' text-anchor='middle' dy='.35em' fill='white'%3EERP%3C/text%3E%3C/svg%3E" />
+      </head>
       <body className="settings-ui-standard">
         <AuthProvider>
           <TenantProvider>
