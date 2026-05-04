@@ -12,14 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import {
     ChevronLeft,
     Save,
-    RefreshCcw,
     Receipt,
     Calculator,
     FileText,
     ShieldCheck,
     AlertCircle,
-    CheckCircle2,
-    UploadCloud
+    CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PurchaseOrder, Vendor, GRN } from '@/lib/db/types';
@@ -45,7 +43,6 @@ export default function NewVendorBillPage() {
   const [grns, setGrns] = useState<GRN[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   // Form State
   const [billNumber, setBillNumber] = useState('');
@@ -115,18 +112,6 @@ export default function NewVendorBillPage() {
       } finally {
           setLoading(false);
       }
-  };
-
-  const simulateOCR = () => {
-      setIsOcrLoading(true);
-      toast.info('Analyzing document structure...');
-
-      setTimeout(() => {
-          setBillNumber(generateRef('BILL'));
-          setDueDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-          toast.success('OCR Capture Complete: Vendor invoice data extracted');
-          setIsOcrLoading(false);
-      }, 2000);
   };
 
   const addLine = () => {
@@ -246,10 +231,6 @@ export default function NewVendorBillPage() {
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={simulateOCR} disabled={isOcrLoading} className="h-10 gap-2 font-bold uppercase text-[10px]">
-                    {isOcrLoading ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                    Auto-Scan Bill
-                </Button>
                 <Button
                     onClick={handleSubmit}
                     disabled={submitting}

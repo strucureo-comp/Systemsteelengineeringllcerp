@@ -48,7 +48,6 @@ import {
     Layers,
     ChevronDown,
     Package,
-    UploadCloud,
 } from 'lucide-react';
 import {
     PieChart,
@@ -169,8 +168,7 @@ export default function PurchasesPage() {
         totalPayables: bills.filter(b => b.status !== 'paid').reduce((sum, b) => sum + Number(b.total_amount), 0),
         newVendors: vendors.filter(v => new Date(v.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length,
         newItems: 12, 
-        avgLeadTime: '4.2 Days',
-        ocrRate: '85%'
+        avgLeadTime: '4.2 Days'
     }), [orders, vendors, requests, bills, rfqs]);
 
     const spendByVendor = useMemo(() => {
@@ -239,7 +237,6 @@ export default function PurchasesPage() {
                         <StatsTile title="AVG LEAD TIME" value={stats.avgLeadTime} icon={Clock} label="Order Cycle" />
                         <StatsTile title="NEW ITEMS" value={stats.newItems.toString()} icon={Package} label="SKUs Added" />
                         <StatsTile title="RFQS CLOSED" value={stats.rfqsClosed.toString()} icon={Layers} label="Efficiency" />
-                        <StatsTile title="AUTO-SCAN %" value={stats.ocrRate} icon={UploadCloud} label="Adoption" />
                     </div>
 
                     <div className="space-y-4 pt-4">
