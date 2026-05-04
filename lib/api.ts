@@ -44,7 +44,10 @@ export async function updateProject(id: string, data: any): Promise<boolean> {
 export async function getLeads(): Promise<any[]> {
     try {
         const res = await fetch(`${API_BASE}/crm/leads`, { headers: authHeaders() });
-        if (res.ok) return res.json();
+        if (res.ok) {
+            const data = await res.json();
+            return Array.isArray(data) ? data.map((l: any) => ({ ...l, id: l._id || l.id })) : [];
+        }
     } catch (e) { console.warn('[API] getLeads error:', e); }
     return [];
 }
@@ -73,7 +76,10 @@ export async function updateLead(id: string, data: any) {
 export async function getOpportunities() {
     try {
         const res = await fetch(`${API_BASE}/crm/opportunities`, { headers: authHeaders() });
-        if (res.ok) return res.json();
+        if (res.ok) {
+            const data = await res.json();
+            return Array.isArray(data) ? data.map((o: any) => ({ ...o, id: o._id || o.id })) : [];
+        }
     } catch (e) { console.warn('[API] getOpportunities error:', e); }
     return [];
 }

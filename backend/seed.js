@@ -199,8 +199,9 @@ async function seedCompleteData() {
         });
 
         // 11. Seed Approval Requests
-        const { ApprovalRequest } = require('./models/ApprovalEngine');
-        await ApprovalRequest.deleteMany({});
+        // const { ApprovalRequest } = require('./models/ApprovalEngine');
+        // await ApprovalRequest.deleteMany({});
+        /*
         await ApprovalRequest.insertMany([
             {
                 reqId: 'REQ-HR-1042',
@@ -243,6 +244,7 @@ async function seedCompleteData() {
                 ]
             }
         ]);
+        */
 
         // 12. Global System State
         await Settings.findOneAndUpdate(
