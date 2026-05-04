@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-    Target, Lightbulb, Users, MessageSquare,
+    Lightbulb, Users, MessageSquare,
     FileSignature, FileText, Receipt, Truck, FileSpreadsheet,
     ChevronRight
 } from 'lucide-react';
@@ -13,7 +13,6 @@ const salesNav = [
     {
         title: 'CRM / Audience',
         items: [
-            { title: 'Leads', href: '/admin/sales/leads', icon: Target },
             { title: 'Opportunities', href: '/admin/sales/opportunities', icon: Lightbulb },
             { title: 'Customers', href: '/admin/sales/customers', icon: Users },
             { title: 'Statements', href: '/admin/sales/customers/statements', icon: FileSpreadsheet },

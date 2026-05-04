@@ -1,3 +1,78 @@
+"use client";
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import {
+  Lightbulb, Users, MessageSquare,
+  FileSignature, FileText, Receipt, Truck, FileSpreadsheet,
+  ChevronRight,
+} from 'lucide-react';
+
+const crmNav = [
+  {
+    title: 'CRM / Audience',
+    items: [
+      { title: 'Opportunities', href: '/admin/sales/opportunities', icon: Lightbulb },
+      { title: 'Customers', href: '/admin/sales/customers', icon: Users },
+      { title: 'Statements', href: '/admin/sales/customers/statements', icon: FileSpreadsheet },
+      { title: 'Enquiries', href: '/admin/crm/enquiries', icon: MessageSquare },
+    ],
+  },
+  {
+    title: 'Sales Process',
+    items: [
+      { title: 'Quotations', href: '/admin/sales/quotations', icon: FileSignature },
+      { title: 'Proforma', href: '/admin/sales/proforma', icon: FileText },
+      { title: 'Invoices', href: '/admin/sales/invoices', icon: Receipt },
+      { title: 'Delivery Notes', href: '/admin/sales/delivery-notes', icon: Truck },
+    ],
+  },
+];
+
 export default function CRMLayout({ children }: { children: React.ReactNode }) {
-  return <div className="p-6 md:p-8">{children}</div>;
+  const pathname = usePathname();
+
+  return (
+    <div className="flex flex-1 overflow-hidden h-full">
+      <aside className="w-64 shrink-0 border-r bg-card flex flex-col">
+        <nav className="p-4 space-y-6 overflow-y-auto">
+          {crmNav.map((group) => (
+            <div key={group.title}>
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
+                {group.title}
+              </h3>
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        'flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
+                        isActive
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </div>
+                      <ChevronRight className="h-3 w-3 opacity-50" />
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <main className="flex-1 overflow-y-auto bg-muted/5">
+        <div className="p-6 md:p-8">{children}</div>
+      </main>
+    </div>
+  );
 }

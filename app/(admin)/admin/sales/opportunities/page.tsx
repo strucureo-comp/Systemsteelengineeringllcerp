@@ -60,6 +60,8 @@ export default function SalesOpportunitiesPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [draggedOpportunityId, setDraggedOpportunityId] = useState<string | null>(null);
+    const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
 
     const isRetail = companyProfile?.businessType === 'b2c_retail';
 
@@ -220,10 +222,9 @@ export default function SalesOpportunitiesPage() {
             const nextStage = opp.stage === 'new_lead' ? 'contacted' : opp.stage;
             const updatedProbability = nextStage === 'contacted' ? 20 : opp.probability;
 
-            await updateOpportunity(id, { 
-                ...opp, 
+            await updateOpportunity(id, {
                 stage: nextStage,
-                probability: updatedProbability 
+                probability: updatedProbability,
             });
             toast.success('Lead moved to next stage successfully!');
             fetchData();
@@ -231,6 +232,54 @@ export default function SalesOpportunitiesPage() {
             console.error('Move stage error:', err);
             toast.error('Failed to move lead to next stage');
         }
+    };
+
+    const moveOpportunityToStage = async (id: string, stage: OpportunityStage) => {
+        try {
+            const opp = opportunities.find(o => o.id === id);
+            if (!opp || opp.stage === stage) return;
+
+            const ok = await updateOpportunity(id, { stage });
+            if (!ok) throw new Error('Update request failed');
+
+            toast.success(`Moved to ${STAGES.find(s => s.id === stage)?.label || stage}`);
+            fetchData();
+        } catch (err) {
+            console.error('Drag move error:', err);
+            toast.error('Failed to move deal');
+        }
+    };
+
+    const handleDragStart = (id: string, e: React.DragEvent) => {
+        e.dataTransfer.setData('text/plain', id);
+        e.dataTransfer.effectAllowed = 'move';
+        setDraggedOpportunityId(id);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedOpportunityId(null);
+        setDragOverStageId(null);
+    };
+
+    const handleStageDragOver = (e: React.DragEvent, stageId: string) => {
+        e.preventDefault();
+        setDragOverStageId(stageId);
+    };
+
+    const handleStageDragLeave = (stageId: string) => {
+        if (dragOverStageId === stageId) {
+            setDragOverStageId(null);
+        }
+    };
+
+    const handleStageDrop = async (e: React.DragEvent, stageId: OpportunityStage) => {
+        e.preventDefault();
+        const droppedId = e.dataTransfer.getData('text/plain') || draggedOpportunityId;
+        if (droppedId) {
+            await moveOpportunityToStage(droppedId, stageId);
+        }
+        setDraggedOpportunityId(null);
+        setDragOverStageId(null);
     };
 
     const handleOpenChange = (open: boolean) => {
@@ -524,7 +573,7 @@ export default function SalesOpportunitiesPage() {
                             return (
                                 <div key={stage.id} className="w-[320px] flex-shrink-0 flex flex-col gap-4">
                                     <div className={cn(
-                                        "flex flex-col gap-2 p-3 rounded-md border",
+                                        "flex flex-col gap-2 p-3 rounded-md border transition-colors",
                                         isWon ? "bg-emerald-500/5 border-emerald-500/20" :
                                             isLost ? "bg-red-500/5 border-red-500/20" : "bg-muted/10 border-border"
                                     )}>
@@ -545,7 +594,15 @@ export default function SalesOpportunitiesPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-3 min-h-[300px]">
+                                    <div
+                                        className={cn(
+                                            "flex flex-col gap-3 min-h-[300px] rounded-lg transition-colors",
+                                            dragOverStageId === stage.id && "bg-primary/5 ring-2 ring-primary/20 ring-inset"
+                                        )}
+                                        onDragOver={(e) => handleStageDragOver(e, stage.id)}
+                                        onDragLeave={() => handleStageDragLeave(stage.id)}
+                                        onDrop={(e) => handleStageDrop(e, stage.id)}
+                                    >
                                         {stageOpps.map((opp, idx) => {
 
                                             const closingSoon = isClosingSoon(opp.close_date || '');
@@ -581,8 +638,14 @@ export default function SalesOpportunitiesPage() {
                                             return (
                                                 <Card
                                                     key={opp.id}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(opp.id, e)}
+                                                    onDragEnd={handleDragEnd}
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onDrop={(e) => handleStageDrop(e, stage.id)}
                                                     className={cn(
-                                                        "border-border shadow-sm bg-card transition-all group overflow-hidden",
+                                                        "border-border shadow-sm bg-card transition-all group overflow-hidden cursor-grab active:cursor-grabbing",
+                                                        draggedOpportunityId === opp.id && "opacity-50 ring-2 ring-primary/20",
                                                         isCardOverdue ? "border-red-500/50 hover:border-red-500" : "hover:border-primary/40"
                                                     )}
                                                 >
