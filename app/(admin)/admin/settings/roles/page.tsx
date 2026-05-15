@@ -19,7 +19,6 @@ interface Permission {
     view: boolean;
     create: boolean;
     edit: boolean;
-    approve: boolean;
 }
 
 interface Role {
@@ -51,14 +50,14 @@ const DEFAULT_ROLES: Role[] = [
         description: 'Full system access',
         isDefault: true,
         permissions: [
-            { module: 'Sales CRM', view: true, create: true, edit: true, approve: true },
-            { module: 'Finance Hub', view: true, create: true, edit: true, approve: true },
-            { module: 'Inventory', view: true, create: true, edit: true, approve: true },
-            { module: 'HR', view: true, create: true, edit: true, approve: true },
-            { module: 'Procurement', view: true, create: true, edit: true, approve: true },
-            { module: 'Reports', view: true, create: true, edit: true, approve: true },
-            { module: 'Projects', view: true, create: true, edit: true, approve: true },
-            { module: 'Manufacturing', view: true, create: true, edit: true, approve: true },
+            { module: 'Sales CRM', view: true, create: true, edit: true },
+            { module: 'Finance Hub', view: true, create: true, edit: true },
+            { module: 'Inventory', view: true, create: true, edit: true },
+            { module: 'HR', view: true, create: true, edit: true },
+            { module: 'Procurement', view: true, create: true, edit: true },
+            { module: 'Reports', view: true, create: true, edit: true },
+            { module: 'Projects', view: true, create: true, edit: true },
+            { module: 'Manufacturing', view: true, create: true, edit: true },
         ]
     },
     {
@@ -66,14 +65,14 @@ const DEFAULT_ROLES: Role[] = [
         name: 'Finance Manager',
         description: 'Finance & Accounting',
         permissions: [
-            { module: 'Sales CRM', view: true, create: false, edit: false, approve: false },
-            { module: 'Finance Hub', view: true, create: true, edit: true, approve: true },
-            { module: 'Inventory', view: true, create: false, edit: false, approve: false },
-            { module: 'HR', view: false, create: false, edit: false, approve: false },
-            { module: 'Procurement', view: true, create: false, edit: false, approve: true },
-            { module: 'Reports', view: true, create: true, edit: false, approve: false },
-            { module: 'Projects', view: false, create: false, edit: false, approve: false },
-            { module: 'Manufacturing', view: false, create: false, edit: false, approve: false },
+            { module: 'Sales CRM', view: true, create: false, edit: false },
+            { module: 'Finance Hub', view: true, create: true, edit: true },
+            { module: 'Inventory', view: true, create: false, edit: false },
+            { module: 'HR', view: false, create: false, edit: false },
+            { module: 'Procurement', view: true, create: false, edit: false },
+            { module: 'Reports', view: true, create: true, edit: false },
+            { module: 'Projects', view: false, create: false, edit: false },
+            { module: 'Manufacturing', view: false, create: false, edit: false },
         ]
     },
     {
@@ -81,14 +80,14 @@ const DEFAULT_ROLES: Role[] = [
         name: 'Sales Manager',
         description: 'Sales & CRM',
         permissions: [
-            { module: 'Sales CRM', view: true, create: true, edit: true, approve: true },
-            { module: 'Finance Hub', view: false, create: false, edit: false, approve: false },
-            { module: 'Inventory', view: true, create: false, edit: false, approve: false },
-            { module: 'HR', view: false, create: false, edit: false, approve: false },
-            { module: 'Procurement', view: false, create: false, edit: false, approve: false },
-            { module: 'Reports', view: true, create: false, edit: false, approve: false },
-            { module: 'Projects', view: true, create: false, edit: false, approve: false },
-            { module: 'Manufacturing', view: false, create: false, edit: false, approve: false },
+            { module: 'Sales CRM', view: true, create: true, edit: true },
+            { module: 'Finance Hub', view: false, create: false, edit: false },
+            { module: 'Inventory', view: true, create: false, edit: false },
+            { module: 'HR', view: false, create: false, edit: false },
+            { module: 'Procurement', view: false, create: false, edit: false },
+            { module: 'Reports', view: true, create: false, edit: false },
+            { module: 'Projects', view: true, create: false, edit: false },
+            { module: 'Manufacturing', view: false, create: false, edit: false },
         ]
     },
     {
@@ -96,14 +95,14 @@ const DEFAULT_ROLES: Role[] = [
         name: 'HR Manager',
         description: 'Human Resources',
         permissions: [
-            { module: 'Sales CRM', view: false, create: false, edit: false, approve: false },
-            { module: 'Finance Hub', view: false, create: false, edit: false, approve: false },
-            { module: 'Inventory', view: false, create: false, edit: false, approve: false },
-            { module: 'HR', view: true, create: true, edit: true, approve: true },
-            { module: 'Procurement', view: false, create: false, edit: false, approve: false },
-            { module: 'Reports', view: true, create: false, edit: false, approve: false },
-            { module: 'Projects', view: false, create: false, edit: false, approve: false },
-            { module: 'Manufacturing', view: false, create: false, edit: false, approve: false },
+            { module: 'Sales CRM', view: false, create: false, edit: false },
+            { module: 'Finance Hub', view: false, create: false, edit: false },
+            { module: 'Inventory', view: false, create: false, edit: false },
+            { module: 'HR', view: true, create: true, edit: true },
+            { module: 'Procurement', view: false, create: false, edit: false },
+            { module: 'Reports', view: true, create: false, edit: false },
+            { module: 'Projects', view: false, create: false, edit: false },
+            { module: 'Manufacturing', view: false, create: false, edit: false },
         ]
     },
     {
@@ -111,14 +110,14 @@ const DEFAULT_ROLES: Role[] = [
         name: 'Employee',
         description: 'General staff access',
         permissions: [
-            { module: 'Sales CRM', view: true, create: true, edit: false, approve: false },
-            { module: 'Finance Hub', view: false, create: false, edit: false, approve: false },
-            { module: 'Inventory', view: true, create: false, edit: false, approve: false },
-            { module: 'HR', view: true, create: false, edit: false, approve: false },
-            { module: 'Procurement', view: false, create: false, edit: false, approve: false },
-            { module: 'Reports', view: false, create: false, edit: false, approve: false },
-            { module: 'Projects', view: true, create: true, edit: false, approve: false },
-            { module: 'Manufacturing', view: false, create: false, edit: false, approve: false },
+            { module: 'Sales CRM', view: true, create: true, edit: false },
+            { module: 'Finance Hub', view: false, create: false, edit: false },
+            { module: 'Inventory', view: true, create: false, edit: false },
+            { module: 'HR', view: true, create: false, edit: false },
+            { module: 'Procurement', view: false, create: false, edit: false },
+            { module: 'Reports', view: false, create: false, edit: false },
+            { module: 'Projects', view: true, create: true, edit: false },
+            { module: 'Manufacturing', view: false, create: false, edit: false },
         ]
     },
     {
@@ -126,14 +125,14 @@ const DEFAULT_ROLES: Role[] = [
         name: 'Viewer',
         description: 'Read-only access',
         permissions: [
-            { module: 'Sales CRM', view: true, create: false, edit: false, approve: false },
-            { module: 'Finance Hub', view: true, create: false, edit: false, approve: false },
-            { module: 'Inventory', view: true, create: false, edit: false, approve: false },
-            { module: 'HR', view: true, create: false, edit: false, approve: false },
-            { module: 'Procurement', view: true, create: false, edit: false, approve: false },
-            { module: 'Reports', view: true, create: false, edit: false, approve: false },
-            { module: 'Projects', view: true, create: false, edit: false, approve: false },
-            { module: 'Manufacturing', view: true, create: false, edit: false, approve: false },
+            { module: 'Sales CRM', view: true, create: false, edit: false },
+            { module: 'Finance Hub', view: true, create: false, edit: false },
+            { module: 'Inventory', view: true, create: false, edit: false },
+            { module: 'HR', view: true, create: false, edit: false },
+            { module: 'Procurement', view: true, create: false, edit: false },
+            { module: 'Reports', view: true, create: false, edit: false },
+            { module: 'Projects', view: true, create: false, edit: false },
+            { module: 'Manufacturing', view: true, create: false, edit: false },
         ]
     },
 ];
@@ -199,7 +198,6 @@ export default function RolesSettingsPage() {
                 view: false,
                 create: false,
                 edit: false,
-                approve: false,
             }))
         };
 
@@ -365,7 +363,6 @@ export default function RolesSettingsPage() {
                                         <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">View</th>
                                         <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Create</th>
                                         <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Edit</th>
-                                        <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Approve</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -388,12 +385,6 @@ export default function RolesSettingsPage() {
                                                 <Switch
                                                     checked={perm.edit}
                                                     onCheckedChange={(v) => handlePermissionChange(idx, 'edit', v)}
-                                                />
-                                            </td>
-                                            <td className="py-3 px-2 text-center">
-                                                <Switch
-                                                    checked={perm.approve}
-                                                    onCheckedChange={(v) => handlePermissionChange(idx, 'approve', v)}
                                                 />
                                             </td>
                                         </tr>

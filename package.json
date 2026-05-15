@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:backend": "node backend/server.js",
+    "dev:backend": "node --watch backend/server.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

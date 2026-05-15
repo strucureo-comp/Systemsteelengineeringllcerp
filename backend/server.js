@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+// Triggering restart for route updates
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
@@ -45,7 +46,7 @@ const reportsRoutes = require('./routes/reports');
 const salesDocumentsRoutes = require('./routes/sales-documents');
 const vouchersRoutes = require('./routes/vouchers');
 const financialAuditRoutes = require('./routes/financial-audit');
-const seedCompleteData = require('./seed');
+
 
 // Upload routes
 const uploadsRoute = require('./routes/uploads');

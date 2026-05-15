@@ -24,6 +24,42 @@ const router = express.Router();
 // HELPER FUNCTIONS
 // ============================================================================
 
+// PUT /api/auth/me - Move to top to ensure no interception
+router.put('/me', auth, async (req, res) => {
+    try {
+        const { 
+            full_name, password, signature_url,
+            acknowledgement_title, acknowledgement_signature_label, acknowledgement_name_label
+        } = req.body;
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (full_name) user.full_name = full_name;
+        if (signature_url !== undefined) user.signature_url = signature_url;
+        
+        if (acknowledgement_title) user.acknowledgement_title = acknowledgement_title;
+        if (acknowledgement_signature_label) user.acknowledgement_signature_label = acknowledgement_signature_label;
+        if (acknowledgement_name_label) user.acknowledgement_name_label = acknowledgement_name_label;
+        
+        if (password) {
+            const passwordValidation = validatePassword(password);
+            if (!passwordValidation.valid) {
+                return res.status(400).json({ error: passwordValidation.error });
+            }
+            user.password = password;
+        }
+
+        await user.save();
+        res.json({ success: true, user: user.toJSON() });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
 function generateAccessToken(user) {
     return jwt.sign(
         { userId: user._id, role: user.role, tenant_id: user.tenant_id },
@@ -87,11 +123,15 @@ router.post('/signup', validate(registerValidator), async (req, res) => {
             return res.status(400).json({ error: 'Email already registered' });
         }
 
+        // Determine role: First user is always Admin
+        const userCount = await User.countDocuments();
+        const role = userCount === 0 ? 'Admin' : 'Employee';
+
         const user = await User.create({
             email: email.toLowerCase(),
             password,
             full_name,
-            role: 'Employee',
+            role,
             tenant_id: 'default'
         });
 
@@ -236,6 +276,7 @@ router.post('/logout', auth, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
     res.json({ user: req.user.toJSON() });
 });
+
 
 // ============================================================================
 // PASSWORD RESET ROUTES
@@ -602,14 +643,44 @@ router.post('/accept-invite', validate(acceptInviteValidator), async (req, res) 
 router.get('/users', auth, async (req, res) => {
     try {
         const tenant_id = req.user?.tenant_id || 'default';
-        const users = await User.find({ tenant_id })
-            .select('-password')
-            .populate('invited_by', 'full_name')
-            .sort({ full_name: 1 });
-        res.json({ success: true, data: users });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 25;
+        const skip = (page - 1) * limit;
+        const role = req.query.role;
+        const type = req.query.type;
+
+        const filter = { tenant_id };
+        if (role) {
+            filter.role = role;
+        } else if (type === 'employee') {
+            filter.role = 'Employee';
+        } else if (type === 'system') {
+            filter.role = { $ne: 'Employee' };
+        }
+
+        const [users, total] = await Promise.all([
+            User.find(filter)
+                .select('-password')
+                .populate('invited_by', 'full_name')
+                .sort({ full_name: 1 })
+                .skip(skip)
+                .limit(limit),
+            User.countDocuments(filter)
+        ]);
+
+        res.json({ 
+            success: true, 
+            data: users,
+            pagination: {
+                total,
+                page,
+                limit,
+                pages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error('Error fetching users:', error);
-        res.status(500).json({ success: false, error: 'Failed to fetch users' });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -646,6 +717,14 @@ router.put('/users/:id', auth, adminOnly, async (req, res) => {
         if (role) user.role = role;
         if (status) user.status = status;
         if (req.body.signature_url !== undefined) user.signature_url = req.body.signature_url;
+
+        if (req.body.password) {
+            const passwordValidation = validatePassword(req.body.password);
+            if (!passwordValidation.valid) {
+                return res.status(400).json({ error: passwordValidation.error });
+            }
+            user.password = req.body.password;
+        }
 
         await user.save();
 

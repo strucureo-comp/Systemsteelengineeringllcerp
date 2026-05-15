@@ -16,10 +16,6 @@ const PermissionSchema = new mongoose.Schema({
     edit: {
         type: Boolean,
         default: false
-    },
-    approve: {
-        type: Boolean,
-        default: false
     }
 }, { _id: false });
 

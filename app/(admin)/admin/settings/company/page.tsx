@@ -290,6 +290,26 @@ export default function CompanySettingsPage() {
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label>Default Tax Name</Label>
+                            <Input
+                                value={company.defaultTaxName}
+                                onChange={(e) => setCompany({ ...company, defaultTaxName: e.target.value })}
+                                placeholder="e.g., VAT, GST, Sales Tax"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Default Tax Rate (%)</Label>
+                            <Input
+                                type="number"
+                                value={company.defaultTaxRate}
+                                onChange={(e) => setCompany({ ...company, defaultTaxRate: parseFloat(e.target.value) || 0 })}
+                                placeholder="e.g., 5"
+                            />
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                             <Label>Business Type</Label>
@@ -400,7 +420,7 @@ export default function CompanySettingsPage() {
                     <CardDescription>These are automatically set based on your country selection</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="flex items-center gap-3 p-4 rounded-lg bg-background">
                             <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
                                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
@@ -408,15 +428,6 @@ export default function CompanySettingsPage() {
                             <div>
                                 <p className="text-sm font-medium">Currency</p>
                                 <p className="text-lg font-semibold">{company.baseCurrency} - {selectedCountry?.currency || 'N/A'}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 p-4 rounded-lg bg-background">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <CheckCircle2 className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium">Tax</p>
-                                <p className="text-lg font-semibold">{company.defaultTaxName} {company.defaultTaxRate}%</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3 p-4 rounded-lg bg-background">

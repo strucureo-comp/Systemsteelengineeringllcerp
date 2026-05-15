@@ -15,7 +15,7 @@ function headers(withJson = true): HeadersInit {
   return h;
 }
 
-async function apiGet<T>(path: string, requireAuth = true): Promise<T> {
+async function apiGet<T>(path: string, requireAuth = true, full = false): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: requireAuth ? headers() : {},
     cache: 'no-store'
@@ -24,7 +24,7 @@ async function apiGet<T>(path: string, requireAuth = true): Promise<T> {
   if (!res.ok || json.success === false) {
     throw new Error(json.error || `Request failed: ${res.status}`);
   }
-  return json.data as T;
+  return (full ? json : json.data) as T;
 }
 
 async function apiSend<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body?: any): Promise<T> {
@@ -92,9 +92,25 @@ export const settingsApi = {
   getApprovals: () => apiGet<any>('/settings/approvals'),
   saveApprovals: (data: any) => apiSend<any>('/settings/approvals', 'PUT', data),
 
-  getUsers: () => apiGet<SettingsUser[]>('/auth/users'),
+  getUsers: (params?: { page?: number; limit?: number; role?: string; type?: 'system' | 'employee' }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.role) query.append('role', params.role);
+    if (params?.type) query.append('type', params.type);
+    const queryString = query.toString();
+    return apiGet<any>(`/auth/users${queryString ? `?${queryString}` : ''}`, true, true);
+  },
   inviteUser: (email: string, role: string) => apiSend<any>('/auth/users/invite', 'POST', { email, role }),
   updateUser: (id: string, data: any) => apiSend<any>(`/auth/users/${id}`, 'PUT', data),
   deleteUser: (id: string) => apiSend<any>(`/auth/users/${id}`, 'DELETE'),
   toggleUserStatus: (id: string, status: 'active' | 'disabled') => apiSend<any>(`/auth/users/${id}/toggle-status`, 'PUT', { status }),
+  updateMyProfile: (data: { 
+    full_name?: string; 
+    password?: string; 
+    signature_url?: string | null;
+    acknowledgement_title?: string;
+    acknowledgement_signature_label?: string;
+    acknowledgement_name_label?: string;
+  }) => apiSend<any>('/auth/me', 'PUT', data),
 };

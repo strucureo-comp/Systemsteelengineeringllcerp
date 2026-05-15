@@ -17,10 +17,6 @@ interface BrandingConfig {
     footerText: string;
     favicon: string | null;
     authorizedSignature: string | null;
-    acknowledgementTitle: string;
-    acknowledgementSignatureLabel: string;
-    acknowledgementNameLabel: string;
-    acknowledgementDateLabel: string;
 }
 
 const DEFAULT_BRANDING: BrandingConfig = {
@@ -30,10 +26,6 @@ const DEFAULT_BRANDING: BrandingConfig = {
     footerText: '',
     favicon: null,
     authorizedSignature: null,
-    acknowledgementTitle: 'RECEIVER ACKNOWLEDGEMENT',
-    acknowledgementSignatureLabel: 'SIGNATURE / COMPANY STAMP',
-    acknowledgementNameLabel: 'NAME',
-    acknowledgementDateLabel: 'DATE & TIME',
 };
 
 const COLOR_PRESETS = [
@@ -193,13 +185,6 @@ export default function BrandingSettingsPage() {
                 footerText: branding.footerText,
                 favicon: branding.favicon,
                 authorizedSignature: branding.authorizedSignature,
-                acknowledgement: {
-                    title: branding.acknowledgementTitle,
-                    signatureLabel: branding.acknowledgementSignatureLabel,
-                    nameLabel: branding.acknowledgementNameLabel,
-                    dateLabel: branding.acknowledgementDateLabel,
-                    showStamp: true
-                }
             };
             localStorage.setItem('pdf-settings', JSON.stringify(syncedPdfSettings));
             localStorage.setItem('erp_pdf_settings', JSON.stringify(syncedPdfSettings));
@@ -320,43 +305,6 @@ export default function BrandingSettingsPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-4 pt-4 border-t">
-                            <Label className="text-sm font-semibold">Document Acknowledgement Block</Label>
-                            <CardDescription className="text-xs">Customize the labels for the receiver signature area on documents</CardDescription>
-                            
-                            <div className="space-y-3">
-                                <div className="space-y-2">
-                                    <Label htmlFor="ackTitle" className="text-xs">Section Title</Label>
-                                    <Input 
-                                        id="ackTitle"
-                                        value={branding.acknowledgementTitle} 
-                                        onChange={(e) => setBranding({ ...branding, acknowledgementTitle: e.target.value })}
-                                        placeholder="RECEIVER ACKNOWLEDGEMENT"
-                                        className="h-8 text-sm"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="sigLabel" className="text-xs">Signature Area Label</Label>
-                                    <Input 
-                                        id="sigLabel"
-                                        value={branding.acknowledgementSignatureLabel} 
-                                        onChange={(e) => setBranding({ ...branding, acknowledgementSignatureLabel: e.target.value })}
-                                        placeholder="SIGNATURE / COMPANY STAMP"
-                                        className="h-8 text-sm"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="nameLabel" className="text-xs">Name Label</Label>
-                                    <Input 
-                                        id="nameLabel"
-                                        value={branding.acknowledgementNameLabel} 
-                                        onChange={(e) => setBranding({ ...branding, acknowledgementNameLabel: e.target.value })}
-                                        placeholder="NAME"
-                                        className="h-8 text-sm"
-                                    />
-                                </div>
-                            </div>
-                        </div>
                     </CardContent>
                 </Card>
 

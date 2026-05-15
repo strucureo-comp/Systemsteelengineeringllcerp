@@ -35,6 +35,9 @@ const userSchema = new mongoose.Schema({
     },
     avatar_url: { type: String, default: null },
     signature_url: { type: String, default: null },
+    acknowledgement_title: { type: String, default: 'RECEIVER ACKNOWLEDGEMENT' },
+    acknowledgement_signature_label: { type: String, default: 'SIGNATURE / COMPANY STAMP' },
+    acknowledgement_name_label: { type: String, default: 'NAME' },
     is_active: { 
         type: Boolean, 
         default: true,

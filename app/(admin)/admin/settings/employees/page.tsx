@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Save, Loader2, Plus, Trash2, Search, Mail, UserCheck, UserX, Send, CheckCircle, Upload, X, ChevronLeft, ChevronRight, KeyRound, Users } from 'lucide-react';
+import { Save, Loader2, Plus, Trash2, Search, Mail, UserCheck, UserX, Send, CheckCircle, Upload, X, ChevronLeft, ChevronRight, KeyRound, Contact } from 'lucide-react';
 import { toast } from 'sonner';
 import { settingsApi } from '@/lib/settings-api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,10 +38,10 @@ const ROLES = [
     'Viewer',
 ];
 
-export default function UsersSettingsPage() {
+export default function EmployeesSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [users, setUsers] = useState<User[]>([]);
+    const [employees, setEmployees] = useState<User[]>([]);
     const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, pages: 1 });
     const [searchQuery, setSearchQuery] = useState('');
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -66,10 +66,11 @@ export default function UsersSettingsPage() {
         }
     };
 
-    const loadUsers = async (page = 1) => {
+    const loadEmployees = async (page = 1) => {
         setLoading(true);
         try {
-            const response = await settingsApi.getUsers({ page, limit: 25, type: 'system' });
+            // Specifically fetch users with 'Employee' role via the 'type' filter
+            const response = await settingsApi.getUsers({ page, limit: 25, type: 'employee' });
             const data = response.data || [];
             const mapped: User[] = data.map((u: any) => ({
                 id: u._id,
@@ -82,65 +83,66 @@ export default function UsersSettingsPage() {
                 signature_url: u.signature_url,
             }));
             
-            setUsers(mapped);
+            setEmployees(mapped);
             setPagination(response.pagination || { page, limit: 25, total: mapped.length, pages: 1 });
         } catch (error: any) {
-            toast.error(error?.message || 'Failed to load users');
+            toast.error(error?.message || 'Failed to load employees');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadUsers();
+        loadEmployees();
     }, []);
 
-    const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredEmployees = employees.filter(e =>
+        e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleInviteUser = async () => {
+    const handleInviteEmployee = async () => {
         if (!inviteEmail) {
             toast.error('Please enter an email address');
             return;
         }
 
         try {
+            // Use the selected role
             await settingsApi.inviteUser(inviteEmail, inviteRole);
             setInviteDialogOpen(false);
             setInviteEmail('');
             setInviteRole('Employee');
             toast.success(`Invitation sent to ${inviteEmail}`);
-            loadUsers(pagination.page);
+            loadEmployees(pagination.page);
         } catch (error: any) {
-            toast.error(error?.message || 'Failed to invite user');
+            toast.error(error?.message || 'Failed to invite employee');
         }
     };
 
-    const handleDeleteUser = async (id: string) => {
+    const handleDeleteEmployee = async (id: string) => {
         try {
             await settingsApi.deleteUser(id);
-            setUsers(users.filter(u => u.id !== id));
-            toast.success('User deleted');
+            setEmployees(employees.filter(e => e.id !== id));
+            toast.success('Employee record removed');
         } catch (error: any) {
-            toast.error(error?.message || 'Failed to delete user');
+            toast.error(error?.message || 'Failed to delete employee');
         }
     };
 
-    const handleUpdateUser = async (id: string, field: keyof User, value: any) => {
-        const nextUsers = users.map(u => u.id === id ? { ...u, [field]: value } : u);
-        setUsers(nextUsers);
+    const handleUpdateEmployee = async (id: string, field: keyof User, value: any) => {
+        const nextEmployees = employees.map(e => e.id === id ? { ...e, [field]: value } : e);
+        setEmployees(nextEmployees);
     };
 
     const handleToggleStatus = async (id: string) => {
-        const user = users.find((u) => u.id === id);
-        if (!user) return;
-        const nextStatus = user.status === 'active' ? 'disabled' : 'active';
+        const employee = employees.find((e) => e.id === id);
+        if (!employee) return;
+        const nextStatus = employee.status === 'active' ? 'disabled' : 'active';
         try {
             await settingsApi.toggleUserStatus(id, nextStatus);
-            setUsers(users.map(u => u.id === id ? { ...u, status: nextStatus } : u));
-            toast.success(`User ${nextStatus === 'active' ? 'activated' : 'disabled'}`);
+            setEmployees(employees.map(e => e.id === id ? { ...e, status: nextStatus } : e));
+            toast.success(`Employee ${nextStatus === 'active' ? 'activated' : 'disabled'}`);
         } catch (error: any) {
             toast.error(error?.message || 'Failed to update status');
         }
@@ -150,17 +152,17 @@ export default function UsersSettingsPage() {
         setSaving(true);
         try {
             await Promise.all(
-                users.map((u) => settingsApi.updateUser(u.id, {
-                    full_name: u.name,
-                    email: u.email,
-                    role: u.role,
-                    status: u.status,
-                    signature_url: u.signature_url,
+                employees.map((e) => settingsApi.updateUser(e.id, {
+                    full_name: e.name,
+                    email: e.email,
+                    role: e.role,
+                    status: e.status,
+                    signature_url: e.signature_url,
                 }))
             );
-            toast.success('Users saved');
+            toast.success('Employee records saved');
         } catch (error: any) {
-            toast.error(error?.message || 'Failed to save users');
+            toast.error(error?.message || 'Failed to save employees');
         } finally {
             setSaving(false);
         }
@@ -181,16 +183,16 @@ export default function UsersSettingsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-slate-900">System Users</h1>
-                    <p className="text-muted-foreground">Manage administrators, managers and viewers</p>
+                    <h1 className="text-2xl font-semibold text-slate-900">Employees</h1>
+                    <p className="text-muted-foreground">Manage general staff and employee accounts</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => loadUsers(pagination.page)}>
+                    <Button variant="outline" onClick={() => loadEmployees(pagination.page)}>
                         <Loader2 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                         Refresh
                     </Button>
                     <Button onClick={() => setInviteDialogOpen(true)} className="gap-1">
-                        <Send className="h-4 w-4" /> Invite User
+                        <Plus className="h-4 w-4" /> Add Employee
                     </Button>
                 </div>
             </div>
@@ -200,60 +202,66 @@ export default function UsersSettingsPage() {
                 <div className="relative w-full md:w-96">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search users..."
+                        placeholder="Search employees..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10"
                     />
                 </div>
-                <Badge variant="outline" className="px-3 py-1 bg-slate-50 border-slate-200 text-slate-600">
-                    Showing {filteredUsers.length} of {pagination.total} total system users
+                <Badge variant="outline" className="px-3 py-1 bg-blue-50 border-blue-200 text-blue-600">
+                    {pagination.total} Total Employees
                 </Badge>
             </div>
 
-            {/* Users Table */}
+            {/* Employees Table */}
             <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-slate-50/50 border-b border-slate-200">
-                                    <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">User</th>
+                                    <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Name</th>
+                                    <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Contact Info</th>
                                     <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Role</th>
                                     <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Signature</th>
                                     <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Status</th>
-                                    <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Last Login</th>
+                                    <th className="text-left p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Onboarding Date</th>
                                     <th className="text-right p-4 font-medium text-slate-500 uppercase tracking-wider text-[10px]">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredUsers.map((user) => (
-                                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
+                                {filteredEmployees.map((employee) => (
+                                    <tr key={employee.id} className="hover:bg-slate-50/50 transition-colors group">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 shrink-0 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-semibold text-xs">
-                                                    {user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??'}
+                                                <div className="h-9 w-9 shrink-0 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
+                                                    {employee.name ? employee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'EM'}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <Input
-                                                        value={user.name}
-                                                        onChange={(e) => handleUpdateUser(user.id, 'name', e.target.value)}
+                                                        value={employee.name}
+                                                        onChange={(e) => handleUpdateEmployee(employee.id, 'name', e.target.value)}
                                                         className="h-7 px-2 font-medium bg-transparent border-transparent hover:border-slate-200 focus:bg-white"
                                                     />
-                                                    <p className="text-[11px] text-slate-400 px-2 truncate">{user.email}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-slate-700 font-medium">{employee.email}</span>
+                                                <span className="text-[10px] text-slate-400 uppercase tracking-tight">Email ID</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
                                             <Select
-                                                value={user.role}
-                                                onValueChange={(v) => handleUpdateUser(user.id, 'role', v)}
+                                                value={employee.role}
+                                                onValueChange={(v) => handleUpdateEmployee(employee.id, 'role', v)}
                                             >
                                                 <SelectTrigger className="h-8 w-36 bg-transparent border-transparent hover:border-slate-200">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {ROLES.filter(r => r !== 'Employee').map((r) => (
+                                                    {ROLES.map((r) => (
                                                         <SelectItem key={r} value={r}>{r}</SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -262,7 +270,7 @@ export default function UsersSettingsPage() {
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
                                                 <div 
-                                                    className="h-10 w-24 rounded border border-slate-200 bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                                                    className="h-9 w-24 rounded border border-slate-200 bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
                                                     onClick={() => {
                                                         const input = document.createElement('input');
                                                         input.type = 'file';
@@ -271,43 +279,43 @@ export default function UsersSettingsPage() {
                                                             const file = e.target.files?.[0];
                                                             if (file) {
                                                                 const reader = new FileReader();
-                                                                reader.onload = () => handleUpdateUser(user.id, 'signature_url', reader.result as string);
+                                                                reader.onload = () => handleUpdateEmployee(employee.id, 'signature_url', reader.result as string);
                                                                 reader.readAsDataURL(file);
                                                             }
                                                         };
                                                         input.click();
                                                     }}
                                                 >
-                                                    {user.signature_url ? (
-                                                        <img src={user.signature_url} alt="Sign" className="h-full w-full object-contain" />
+                                                    {employee.signature_url ? (
+                                                        <img src={employee.signature_url} alt="Sign" className="h-full w-full object-contain" />
                                                     ) : (
-                                                        <Upload className="h-4 w-4 text-slate-300" />
+                                                        <Upload className="h-3.5 w-3.5 text-slate-300" />
                                                     )}
                                                 </div>
-                                                {user.signature_url && (
+                                                {employee.signature_url && (
                                                     <button 
-                                                        onClick={() => handleUpdateUser(user.id, 'signature_url', null)}
-                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500"
+                                                        onClick={() => handleUpdateEmployee(employee.id, 'signature_url', null)}
+                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400"
                                                     >
-                                                        <X className="h-3.5 w-3.5" />
+                                                        <X className="h-3 w-3" />
                                                     </button>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="p-4">
                                             <Badge
-                                                variant={user.status === 'active' ? 'default' : user.status === 'pending' ? 'outline' : 'secondary'}
+                                                variant={employee.status === 'active' ? 'default' : employee.status === 'pending' ? 'outline' : 'secondary'}
                                                 className={`text-[10px] h-5 capitalize ${
-                                                    user.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 
-                                                    user.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50' : 
+                                                    employee.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 
+                                                    employee.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50' : 
                                                     'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-50'
                                                 }`}
                                             >
-                                                {user.status}
+                                                {employee.status}
                                             </Badge>
                                         </td>
-                                        <td className="p-4 text-xs text-slate-500 font-mono">
-                                            {user.lastLogin || 'Never'}
+                                        <td className="p-4 text-xs text-slate-500">
+                                            {employee.invitedAt ? new Date(employee.invitedAt).toLocaleDateString() : 'N/A'}
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -316,7 +324,7 @@ export default function UsersSettingsPage() {
                                                     size="sm"
                                                     className="h-8 w-8 p-0 text-slate-400 hover:text-slate-900"
                                                     title="Reset Password"
-                                                    onClick={() => setPasswordResetUser(user)}
+                                                    onClick={() => setPasswordResetUser(employee)}
                                                 >
                                                     <KeyRound className="h-4 w-4" />
                                                 </Button>
@@ -324,10 +332,9 @@ export default function UsersSettingsPage() {
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-8 w-8 p-0"
-                                                    onClick={() => handleToggleStatus(user.id)}
-                                                    title={user.status === 'active' ? 'Disable User' : 'Enable User'}
+                                                    onClick={() => handleToggleStatus(employee.id)}
                                                 >
-                                                    {user.status === 'active' ? (
+                                                    {employee.status === 'active' ? (
                                                         <UserX className="h-4 w-4 text-amber-500" />
                                                     ) : (
                                                         <UserCheck className="h-4 w-4 text-emerald-500" />
@@ -337,7 +344,7 @@ export default function UsersSettingsPage() {
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-8 w-8 p-0 hover:bg-red-50"
-                                                    onClick={() => handleDeleteUser(user.id)}
+                                                    onClick={() => handleDeleteEmployee(employee.id)}
                                                 >
                                                     <Trash2 className="h-4 w-4 text-red-400" />
                                                 </Button>
@@ -349,11 +356,11 @@ export default function UsersSettingsPage() {
                         </table>
                     </div>
 
-                    {filteredUsers.length === 0 && !loading && (
+                    {filteredEmployees.length === 0 && !loading && (
                         <div className="py-20 text-center">
-                            <Users className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-                            <p className="text-slate-500 font-medium">No system users found</p>
-                            <p className="text-xs text-slate-400 mt-1">Try adjusting your search or inviting a new user</p>
+                            <Contact className="h-12 w-12 text-slate-200 mx-auto mb-3" />
+                            <p className="text-slate-500 font-medium">No employees found</p>
+                            <p className="text-xs text-slate-400 mt-1">Add your first employee to get started</p>
                         </div>
                     )}
                 </CardContent>
@@ -370,7 +377,7 @@ export default function UsersSettingsPage() {
                             variant="outline" 
                             size="sm" 
                             disabled={pagination.page <= 1 || loading}
-                            onClick={() => loadUsers(pagination.page - 1)}
+                            onClick={() => loadEmployees(pagination.page - 1)}
                         >
                             <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                         </Button>
@@ -378,7 +385,7 @@ export default function UsersSettingsPage() {
                             variant="outline" 
                             size="sm" 
                             disabled={pagination.page >= pagination.pages || loading}
-                            onClick={() => loadUsers(pagination.page + 1)}
+                            onClick={() => loadEmployees(pagination.page + 1)}
                         >
                             Next <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
@@ -386,31 +393,31 @@ export default function UsersSettingsPage() {
                 </div>
             )}
 
-            {/* Invite Dialog */}
+            {/* Add Employee Dialog */}
             <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-semibold">Invite Team Member</DialogTitle>
+                        <DialogTitle className="text-xl font-semibold">Add New Employee</DialogTitle>
                         <DialogDescription className="text-slate-500">
-                            Send an invitation to join the system. They will receive an email to set their password.
+                            Create an account for a new staff member. They will receive an invitation email.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+                            <Label htmlFor="employee-email" className="text-sm font-medium">Work Email Address</Label>
                             <Input
-                                id="email"
+                                id="employee-email"
                                 type="email"
-                                placeholder="name@company.com"
+                                placeholder="employee@company.com"
                                 value={inviteEmail}
                                 onChange={(e) => setInviteEmail(e.target.value)}
-                                className="h-10 focus:ring-primary/20"
+                                className="h-10"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">System Role</Label>
+                            <Label htmlFor="employee-role" className="text-sm font-medium">Initial Role</Label>
                             <Select value={inviteRole} onValueChange={setInviteRole}>
-                                <SelectTrigger className="h-10">
+                                <SelectTrigger id="employee-role" className="h-10">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -419,13 +426,17 @@ export default function UsersSettingsPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <p className="text-[11px] text-slate-400">Roles define what parts of the system the user can access.</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                            <p className="text-[11px] text-slate-500 leading-relaxed">
+                                <span className="font-semibold text-slate-700">Note:</span> New employees are automatically assigned the 'Employee' role with limited access to the system. You can upgrade their role later in the Users section.
+                            </p>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setInviteDialogOpen(false)} className="text-slate-500 hover:text-slate-900">Cancel</Button>
-                        <Button onClick={handleInviteUser} className="gap-2 px-6">
-                            <Send className="h-4 w-4" /> Send Invite
+                        <Button variant="ghost" onClick={() => setInviteDialogOpen(false)} className="text-slate-500">Cancel</Button>
+                        <Button onClick={handleInviteEmployee} className="gap-2 px-6">
+                            <Plus className="h-4 w-4" /> Add Employee
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -433,9 +444,9 @@ export default function UsersSettingsPage() {
 
             {/* Save Button */}
             <div className="flex justify-end pt-4">
-                <Button onClick={handleSave} disabled={saving || users.length === 0} className="gap-2 px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+                <Button onClick={handleSave} disabled={saving || employees.length === 0} className="gap-2 px-8 py-6 rounded-xl shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all bg-slate-900 hover:bg-slate-800 text-white border-none">
                     {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                    Save All Changes
+                    Sync Employee Data
                 </Button>
             </div>
             {/* Password Reset Dialog */}
@@ -444,7 +455,7 @@ export default function UsersSettingsPage() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <KeyRound className="h-5 w-5 text-primary" />
-                            Reset User Password
+                            Reset Employee Password
                         </DialogTitle>
                         <DialogDescription>
                             Set a new password for <strong>{passwordResetUser?.name}</strong>.

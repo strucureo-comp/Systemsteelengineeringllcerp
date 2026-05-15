@@ -6,13 +6,14 @@ import { cn } from '@/lib/utils';
 import {
     Building2, Palette, DollarSign, Receipt,
     Users, Shield, Layers, ChevronRight,
-    Workflow
+    Workflow, Contact, User
 } from 'lucide-react';
 
 const settingsNav = [
     {
         title: 'General',
         items: [
+            { title: 'Profile', href: '/admin/settings/profile', icon: User },
             { title: 'Company', href: '/admin/settings/company', icon: Building2 },
             { title: 'Branding', href: '/admin/settings/branding', icon: Palette },
         ]
@@ -28,14 +29,9 @@ const settingsNav = [
         title: 'Access',
         items: [
             { title: 'Users', href: '/admin/settings/users', icon: Users },
+            { title: 'Employees', href: '/admin/settings/employees', icon: Contact },
             { title: 'Roles & Permissions', href: '/admin/settings/roles', icon: Shield },
             { title: 'Approval Workflows', href: '/admin/settings/approvals', icon: Workflow },
-        ]
-    },
-    {
-        title: 'System',
-        items: [
-            { title: 'Modules', href: '/admin/settings/modules', icon: Layers },
         ]
     },
 ];
