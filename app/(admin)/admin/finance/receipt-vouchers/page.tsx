@@ -108,6 +108,7 @@ export default function ReceiptVouchersPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true);
         const [voucherData, accountData] = await Promise.all([getReceiptVouchers(), getAccounts()]);
         setItems(Array.isArray(voucherData) ? voucherData.map(normalized) : []);
         setAccounts(Array.isArray(accountData) ? accountData : []);

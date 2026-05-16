@@ -238,6 +238,10 @@ const salesInvoiceSchema = new mongoose.Schema({
     rejectedReason: String
 }, { timestamps: true });
 
+salesInvoiceSchema.index({ customerId: 1 });
+salesInvoiceSchema.index({ status: 1 });
+salesInvoiceSchema.index({ date: -1 });
+
 // ── SALES QUOTATION ────────────────────────────────────────────────────────
 const salesQuotationItemSchema = new mongoose.Schema({
     id: String,
@@ -273,6 +277,10 @@ const salesQuotationSchema = new mongoose.Schema({
     rejectedAt: String,
     rejectedReason: String
 }, { timestamps: true });
+
+salesQuotationSchema.index({ customerId: 1 });
+salesQuotationSchema.index({ status: 1 });
+salesQuotationSchema.index({ date: -1 });
 
 // ── SALES CREDIT NOTE ───────────────────────────────────────────────────────
 const salesCreditNoteSchema = new mongoose.Schema({

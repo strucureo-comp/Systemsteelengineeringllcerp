@@ -92,8 +92,15 @@ export default function SalesInvoicesPage() {
     const canApprove = canApproveDocument('sales', documentType);
 
     useEffect(() => {
-        loadInvoices();
-        loadCustomers();
+        const initData = async () => {
+            setLoading(true);
+            try {
+                await Promise.all([loadInvoices(), loadCustomers()]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        initData();
     }, []);
 
     const loadInvoices = async () => {
@@ -106,8 +113,6 @@ export default function SalesInvoicesPage() {
             setInvoices(list);
         } catch {
             setInvoices([]);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -124,25 +129,12 @@ export default function SalesInvoicesPage() {
         }
     };
 
-    const filteredInvoices = useMemo(() => {
-        return invoices.filter(i =>
-            i.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            i.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [invoices, searchQuery]);
-
-    const generateInvoiceNumber = () => {
-        const year = new Date().getFullYear();
-        const count = invoices.length + 1;
-        return `INV-${year}-${count.toString().padStart(4, '0')}`;
-    };
-
-    const calculateTotals = (invoice: Partial<SalesInvoice>) => {
-        const subtotal = invoice.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) || 0;
-        const taxAmount = subtotal * (invoice.taxRate || 0) / 100;
+    const editingTotals = useMemo(() => {
+        const subtotal = editingInvoice.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) || 0;
+        const taxAmount = subtotal * (editingInvoice.taxRate || 0) / 100;
         const total = subtotal + taxAmount;
         return { subtotal, taxAmount, total };
-    };
+    }, [editingInvoice.items, editingInvoice.taxRate]);
 
     const handleAddItem = () => {
         const newItem: InvoiceItem = {
@@ -159,27 +151,23 @@ export default function SalesInvoicesPage() {
     };
 
     const handleUpdateItem = (id: string, field: keyof InvoiceItem, value: any) => {
-        const updatedItems = editingInvoice.items?.map(item => {
-            if (item.id === id) {
-                const updated = { ...item, [field]: value };
-                updated.total = updated.quantity * updated.unitPrice;
-                return updated;
-            }
-            return item;
+        setEditingInvoice(prev => {
+            const updatedItems = prev.items?.map(item => {
+                if (item.id === id) {
+                    const updated = { ...item, [field]: value };
+                    updated.total = updated.quantity * updated.unitPrice;
+                    return updated;
+                }
+                return item;
+            });
+            return { ...prev, items: updatedItems };
         });
-        setEditingInvoice(prev => ({
-            ...prev,
-            items: updatedItems,
-            ...calculateTotals({ ...prev, items: updatedItems }),
-        }));
     };
 
     const handleRemoveItem = (id: string) => {
-        const updatedItems = editingInvoice.items?.filter(item => item.id !== id);
         setEditingInvoice(prev => ({
             ...prev,
-            items: updatedItems,
-            ...calculateTotals({ ...prev, items: updatedItems }),
+            items: prev.items?.filter(item => item.id !== id),
         }));
     };
 
@@ -200,6 +188,9 @@ export default function SalesInvoicesPage() {
             date: editingInvoice.date || new Date().toISOString().split('T')[0],
             dueDate: editingInvoice.dueDate || '',
             items: editingInvoice.items || [],
+            subtotal: editingTotals.subtotal,
+            taxAmount: editingTotals.taxAmount,
+            total: editingTotals.total,
             taxRate: editingInvoice.taxRate || taxRate,
             notes: editingInvoice.notes || '',
             deliveryNoteId: editingInvoice.deliveryNoteId || '',

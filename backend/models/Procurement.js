@@ -55,6 +55,10 @@ const purchaseOrderSchema = new mongoose.Schema({
     due_date: Date
 }, { timestamps: true });
 
+purchaseOrderSchema.index({ vendor_id: 1 });
+purchaseOrderSchema.index({ status: 1 });
+purchaseOrderSchema.index({ createdAt: -1 });
+
 // ── RFQ (REQUEST FOR QUOTATION) ──────────────────────────────────────────────
 const rfqSchema = new mongoose.Schema({
     tenant_id: { type: String, index: true, default: 'default' },

@@ -86,16 +86,18 @@ export default function QuotationsPage() {
         if (typeof window !== 'undefined') {
             setCurrentUserRole(localStorage.getItem('user_role') || 'Employee');
         }
-        loadQuotations();
-        loadCustomers();
+        
+        const initData = async () => {
+            setLoading(true);
+            try {
+                await Promise.all([loadQuotations(), loadCustomers()]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        initData();
     }, []);
-
-    const filteredQuotations = useMemo(() => {
-        return quotations.filter(q =>
-            q.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            q.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [quotations, searchQuery]);
 
     const loadQuotations = async () => {
         try {
@@ -107,8 +109,6 @@ export default function QuotationsPage() {
             setQuotations(list);
         } catch {
             setQuotations([]);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -125,46 +125,52 @@ export default function QuotationsPage() {
         }
     };
 
+    const filteredQuotations = useMemo(() => {
+        return quotations.filter(q =>
+            q.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            q.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [quotations, searchQuery]);
+
     const generateQuotationNumber = () => {
         const year = new Date().getFullYear();
         const count = quotations.length + 1;
         return `QT-${year}-${count.toString().padStart(4, '0')}`;
     };
 
-    const calculateTotals = (quotation: Partial<SalesQuotation>) => {
-        const subtotal = quotation.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) || 0;
-        const taxAmount = subtotal * (quotation.taxRate || 0) / 100;
+    const editingTotals = useMemo(() => {
+        const subtotal = editingQuotation.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) || 0;
+        const taxAmount = subtotal * (editingQuotation.taxRate || 0) / 100;
         const total = subtotal + taxAmount;
         return { subtotal, taxAmount, total };
-    };
+    }, [editingQuotation.items, editingQuotation.taxRate]);
 
     const handleAddItem = () => {
         const newItem: QuotationItem = { id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0, total: 0 };
-        setEditingQuotation(prev => ({ ...prev, items: [...(prev.items || []), newItem] }));
-    };
-
-    const handleUpdateItem = (id: string, field: keyof QuotationItem, value: any) => {
-        const updatedItems = editingQuotation.items?.map(item => {
-            if (item.id === id) {
-                const updated = { ...item, [field]: value };
-                updated.total = updated.quantity * updated.unitPrice;
-                return updated;
-            }
-            return item;
-        });
-        setEditingQuotation(prev => ({
-            ...prev,
-            items: updatedItems,
-            ...calculateTotals({ ...prev, items: updatedItems }),
+        setEditingQuotation(prev => ({ 
+            ...prev, 
+            items: [...(prev.items || []), newItem]
         }));
     };
 
+    const handleUpdateItem = (id: string, field: keyof QuotationItem, value: any) => {
+        setEditingQuotation(prev => {
+            const updatedItems = prev.items?.map(item => {
+                if (item.id === id) {
+                    const updated = { ...item, [field]: value };
+                    updated.total = updated.quantity * updated.unitPrice;
+                    return updated;
+                }
+                return item;
+            });
+            return { ...prev, items: updatedItems };
+        });
+    };
+
     const handleRemoveItem = (id: string) => {
-        const updatedItems = editingQuotation.items?.filter(item => item.id !== id);
         setEditingQuotation(prev => ({
             ...prev,
-            items: updatedItems,
-            ...calculateTotals({ ...prev, items: updatedItems }),
+            items: prev.items?.filter(item => item.id !== id)
         }));
     };
 
@@ -179,6 +185,9 @@ export default function QuotationsPage() {
             date: editingQuotation.date || new Date().toISOString().split('T')[0],
             validUntil: editingQuotation.validUntil || '',
             items: editingQuotation.items || [],
+            subtotal: editingTotals.subtotal,
+            taxAmount: editingTotals.taxAmount,
+            total: editingTotals.total,
             taxRate: editingQuotation.taxRate || taxRate,
             notes: editingQuotation.notes || '',
             status: editingQuotation.status || 'draft',
