@@ -6,7 +6,9 @@
     "scripts": {
         "dev": "node --watch server.js",
         "start": "node server.js",
-        "storage:maintenance": "node jobs/storageMaintenance.js"
+        "storage:maintenance": "node jobs/storageMaintenance.js",
+        "test": "jest",
+        "test:coverage": "jest --coverage"
     },
     "dependencies": {
         "axios": "^1.4.0",
@@ -28,5 +30,8 @@
         "swagger-ui-express": "^5.0.1",
         "xss-clean": "^0.1.4"
     },
-    "devDependencies": {}
+    "devDependencies": {
+        "jest": "^30.4.2",
+        "supertest": "^7.2.2"
+    }
 }

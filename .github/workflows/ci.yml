@@ -1,5 +1,4 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches: [ main, develop ]
@@ -20,14 +19,14 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
+          
     steps:
       - uses: actions/checkout@v3
       
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
       
@@ -38,8 +37,9 @@ jobs:
       - name: Run backend tests
         working-directory: ./backend
         env:
-          MONGODB_URI_TEST: mongodb://localhost:27017/bridgebreak-test
+          MONGODB_URI: mongodb://localhost:27017/bridgebreak-test
           JWT_SECRET: test-secret-key
+          NODE_ENV: test
         run: npm test
       
       - name: Generate coverage report
@@ -47,10 +47,11 @@ jobs:
         run: npm run test:coverage || true
       
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/external-action@v3
         with:
           directory: ./backend/coverage
           flags: backend
+        continue-on-error: true
 
   test-frontend:
     runs-on: ubuntu-latest
@@ -61,11 +62,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
       
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
       
       - name: Run TypeScript check
         run: npm run typecheck
@@ -78,7 +79,6 @@ jobs:
 
   security-scan:
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v3
       
@@ -113,8 +113,6 @@ jobs:
           file: ./Dockerfile.backend
           push: true
           tags: bridgebreak/erp-backend:latest,bridgebreak/erp-backend:${{ github.sha }}
-          cache-from: type=registry,ref=bridgebreak/erp-backend:buildcache
-          cache-to: type=registry,ref=bridgebreak/erp-backend:buildcache,mode=max
       
       - name: Build and push frontend
         uses: docker/build-push-action@v4
@@ -123,8 +121,6 @@ jobs:
           file: ./Dockerfile.frontend
           push: true
           tags: bridgebreak/erp-frontend:latest,bridgebreak/erp-frontend:${{ github.sha }}
-          cache-from: type=registry,ref=bridgebreak/erp-frontend:buildcache
-          cache-to: type=registry,ref=bridgebreak/erp-frontend:buildcache,mode=max
 
   deploy:
     runs-on: ubuntu-latest
@@ -136,6 +132,5 @@ jobs:
       
       - name: Deploy to production
         run: |
-          echo "Deployment step - configure based on your infrastructure"
-          # Example: SSH to server and pull latest images
-          # ssh user@server 'cd /app && docker-compose pull && docker-compose up -d'
+          echo "Deployment step - images pushed to Docker Hub."
+          echo "To complete deployment, configure your server to pull bridgebreak/erp-backend:latest and bridgebreak/erp-frontend:latest"

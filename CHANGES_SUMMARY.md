@@ -40,5 +40,11 @@ This update implements several requested features across Procurement, Sales, HR,
 ### 4. API Standardization
 - Migrated multiple pages from raw `fetch` calls to the centralized `lib/api.ts` and `business-documents-api.ts` services to ensure consistent authentication headers and error handling.
 
+### 5. CI/CD & Devops
+- **GitHub Actions:** Implemented a full pipeline in `.github/workflows/ci.yml` for automated testing, security scanning, and Docker builds.
+- **Dockerization:** Created `Dockerfile.backend` and `Dockerfile.frontend` for containerized deployment.
+- **Backend Testing:** Integrated Jest and Supertest, adding a baseline health check test suite.
+- **Documentation:** Created a `workflow/` folder with detailed setup and local testing instructions.
+
 ## Testing Status
-All modules have passed **Deep Functional Verification**, including interactive form testing, data persistence checks, and workflow transitions (e.g., Save -> Approve -> Post).
+All modules have passed **Deep Functional Verification**, and the new **Automated CI Pipeline** has been verified with a local test run of the API health suite.
