@@ -47,7 +47,7 @@ jobs:
         run: npm run test:coverage || true
       
       - name: Upload coverage to Codecov
-        uses: codecov/external-action@v3
+        uses: codecov/codecov-action@v3
         with:
           directory: ./backend/coverage
           flags: backend
