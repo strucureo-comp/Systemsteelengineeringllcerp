@@ -21,29 +21,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     useEffect(() => {
         if (!loading) {
-            if (!user) {
-                router.push('/login');
-            } else if (!isAdminUser(user.role)) {
-                // Not an admin, they shouldn't be in the /admin area
+            if (!user || !isAdminUser(user.role)) {
                 router.push('/login');
             }
         }
     }, [user, loading, router]);
 
+    // If auth is loading, we still show the spinner for initial session check
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-background">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
         );
     }
 
+    // Only block if we are sure there is no user or they aren't admin (and not loading)
     if (!user || !isAdminUser(user.role)) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
-        );
+        return null; // Let the useEffect handle the redirect
     }
 
     return (
@@ -67,7 +62,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                     {/* Content Hub - Standard padding for all hubs */}
                     <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 pb-24 md:pb-12 no-scrollbar">
-                        <div className="animate-in fade-in duration-500 w-full">
+                        {/* Page Transition Wrapper */}
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out w-full">
                             {children}
                         </div>
                     </div>
