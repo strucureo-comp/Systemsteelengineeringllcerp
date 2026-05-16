@@ -5,13 +5,11 @@ const userSchema = new mongoose.Schema({
     tenant_id: { 
         type: String, 
         default: 'default', 
-        required: true,
-        index: true 
+        required: true
     },
     email: { 
         type: String, 
         required: true, 
-        unique: true, 
         lowercase: true, 
         trim: true,
         match: [/\S+@\S+\.\S+/, 'Invalid email format']
@@ -30,8 +28,7 @@ const userSchema = new mongoose.Schema({
     role: { 
         type: String, 
         trim: true, 
-        default: 'Employee',
-        index: true
+        default: 'Employee'
     },
     avatar_url: { type: String, default: null },
     signature_url: { type: String, default: null },
@@ -40,14 +37,12 @@ const userSchema = new mongoose.Schema({
     acknowledgement_name_label: { type: String, default: 'NAME' },
     is_active: { 
         type: Boolean, 
-        default: true,
-        index: true
+        default: true
     },
     status: { 
         type: String, 
         enum: ['active', 'pending', 'disabled'], 
-        default: 'active',
-        index: true
+        default: 'active'
     },
     invited_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     invited_at: { type: Date },

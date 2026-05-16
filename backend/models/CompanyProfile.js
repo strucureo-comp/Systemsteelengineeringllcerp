@@ -4,7 +4,6 @@ const CompanyProfileSchema = new mongoose.Schema({
     tenant_id: {
         type: String,
         required: true,
-        index: true,
         default: 'default'
     },
     companyName: {

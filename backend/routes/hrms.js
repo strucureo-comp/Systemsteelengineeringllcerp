@@ -60,7 +60,8 @@ router.get('/employees', auth, async (req, res) => {
         const employees = await Employee.find()
             .populate('department_id', 'name')
             .populate('hr_role_id', 'title')
-            .sort({ employee_id: 1 });
+            .sort({ employee_id: 1 })
+            .lean();
         res.json(transformArray(employees));
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch employees' });
@@ -111,7 +112,7 @@ router.put('/employees/:id', auth, async (req, res) => {
 // ── DEPARTMENTS ─────────────────────────────────────────────────────────────
 router.get('/departments', auth, async (req, res) => {
     try {
-        const depts = await HRDepartment.find().sort({ name: 1 });
+        const depts = await HRDepartment.find().sort({ name: 1 }).lean();
         res.json(transformArray(depts));
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch departments' });
@@ -181,7 +182,7 @@ router.get('/attendance', auth, async (req, res) => {
     try {
         const { date } = req.query;
         const query = date ? { date: new Date(date) } : {};
-        const records = await Attendance.find(query).populate('employee_id', 'name employee_id');
+        const records = await Attendance.find(query).populate('employee_id', 'name employee_id').lean();
         res.json(transformArray(records));
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch attendance' });
@@ -244,7 +245,8 @@ router.get('/leaves', auth, async (req, res) => {
         const leaves = await Leave.find()
             .populate('employee_id', 'name employee_id')
             .populate('leave_type', 'name code')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
         res.json(transformArray(leaves));
     } catch (err) {
         console.error("GET /leaves error", err);
@@ -485,7 +487,8 @@ router.get('/payrolls', auth, async (req, res) => {
                 path: 'lines.employee_id',
                 select: 'name employee_id'
             })
-            .sort({ month: -1 });
+            .sort({ month: -1 })
+            .lean();
 
         // Transform payrolls to rename employee_id to employee in lines
         const seenRuns = {};
@@ -601,6 +604,28 @@ router.post('/payrolls/generate', auth, async (req, res) => {
             $or: [{ payroll_cycle_id: null }, { payroll_cycle_id: { $exists: false } }]
         }).lean();
 
+        // Query unpaid leaves for LOP (Loss of Pay) calculation
+        const unpaidLeaves = await Leave.find({
+            start_date: { $lte: endDate },
+            end_date: { $gte: startDate },
+            status: 'approved',
+            is_paid: false
+        }).lean();
+
+        // Group unpaid leave days by employee_id
+        const lopDaysByEmployee = {};
+        unpaidLeaves.forEach(leave => {
+            const empId = String(leave.employee_id);
+            // Calculate overlap days within this month
+            const leaveStart = new Date(Math.max(startDate, new Date(leave.start_date)));
+            const leaveEnd = new Date(Math.min(endDate, new Date(leave.end_date)));
+            const days = Math.ceil((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1;
+            
+            if (days > 0) {
+                lopDaysByEmployee[empId] = (lopDaysByEmployee[empId] || 0) + days;
+            }
+        });
+
         // Group overtime by employee_id
         const overtimeByEmployee = {};
         overtimeLogs.forEach(log => {
@@ -626,8 +651,13 @@ router.post('/payrolls/generate', auth, async (req, res) => {
             const empId = s.employee_id._id.toString();
             const timesheetOvertimePay = Number(overtimeHoursByEmployee[empId] || 0) * Number(s.employee_id?.overtime_rate || 0);
             const overtimePay = Number(overtimeByEmployee[empId] || 0) + timesheetOvertimePay;
+            
+            // Calculate LOP Deduction
+            const unpaidDays = lopDaysByEmployee[empId] || 0;
+            const lopDeduction = unpaidDays > 0 ? (s.basic / 30) * unpaidDays : 0;
+
             const basicPlusAllowances = s.basic + s.hra + s.da + s.ta + s.special_allowance;
-            const totalDeductions = s.pf_employee + s.esi_employee + s.professional_tax + s.tds;
+            const totalDeductions = s.pf_employee + s.esi_employee + s.professional_tax + s.tds + lopDeduction;
             const netPay = basicPlusAllowances + overtimePay - totalDeductions;
 
             return {

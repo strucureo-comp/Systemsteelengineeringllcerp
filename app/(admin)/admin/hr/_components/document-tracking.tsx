@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from '@/components/ui/skeleton';
+import { FileUpload } from '@/components/shared/FileUpload';
 
 interface EmployeeDocument {
   id: string;
@@ -39,6 +40,8 @@ interface EmployeeDocument {
   sponsor?: string;
   profession?: string;
   notes?: string;
+  file_url?: string;
+  file_name?: string;
 }
 
 interface EmployeeWithDocs {
@@ -373,17 +376,40 @@ function DocumentDialog({ onSuccess, employees }: any) {
     sponsor: '',
     profession: '',
     has_expiry: true,
-    notes: ''
+    notes: '',
+    file_url: '',
+    file_name: ''
   });
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.employee_id) {
+        toast({ title: 'Error', description: 'Please select an employee', variant: 'destructive' });
+        return;
+    }
+
     try {
       const created = await createEmployeeDocument(formData);
       if (created) {
         toast({ title: 'Success', description: 'Document added successfully' });
         setOpen(false);
+        setFormData({
+            employee_id: '',
+            document_type: 'passport',
+            document_name: '',
+            document_number: '',
+            issue_date: '',
+            expiry_date: '',
+            issuing_authority: '',
+            issuing_country: '',
+            sponsor: '',
+            profession: '',
+            has_expiry: true,
+            notes: '',
+            file_url: '',
+            file_name: ''
+        });
         onSuccess();
       }
     } catch (err) {
@@ -401,39 +427,68 @@ function DocumentDialog({ onSuccess, employees }: any) {
           <DialogTitle>Add Employee Document</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label>Employee</Label>
-            <Select value={formData.employee_id} onValueChange={(v) => setFormData({...formData, employee_id: v})} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees.map((emp: any) => (
-                  <SelectItem key={emp.id || emp._id} value={emp.id || emp._id}>{emp.name} ({emp.employee_id})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Employee</Label>
+              <Select value={formData.employee_id} onValueChange={(v) => setFormData({...formData, employee_id: v})} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((emp: any) => (
+                    <SelectItem key={emp.id || emp._id} value={emp.id || emp._id}>{emp.name} ({emp.employee_id})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Document Type</Label>
+              <Select value={formData.document_type} onValueChange={(v) => setFormData({...formData, document_type: v})} required>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="passport">Passport</SelectItem>
+                  <SelectItem value="visa">Visa</SelectItem>
+                  <SelectItem value="emirates_id">Emirates ID</SelectItem>
+                  <SelectItem value="labour_card">Labour Card</SelectItem>
+                  <SelectItem value="certificate">Certificate</SelectItem>
+                  <SelectItem value="qualification">Qualification</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="insurance">Insurance</SelectItem>
+                  <SelectItem value="driving_license">Driving License</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <Label>Document Type</Label>
-            <Select value={formData.document_type} onValueChange={(v) => setFormData({...formData, document_type: v})} required>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="passport">Passport</SelectItem>
-                <SelectItem value="visa">Visa</SelectItem>
-                <SelectItem value="emirates_id">Emirates ID</SelectItem>
-                <SelectItem value="labour_card">Labour Card</SelectItem>
-                <SelectItem value="certificate">Certificate</SelectItem>
-                <SelectItem value="qualification">Qualification</SelectItem>
-                <SelectItem value="contract">Contract</SelectItem>
-                <SelectItem value="insurance">Insurance</SelectItem>
-                <SelectItem value="driving_license">Driving License</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+
+          <div className="p-4 border border-dashed rounded-lg bg-muted/50">
+            <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-primary">Upload Document File</Label>
+            <FileUpload 
+              endpoint={`/hrms/employees/${formData.employee_id}/documents`}
+              onUploadComplete={(data) => {
+                setFormData(prev => ({
+                  ...prev,
+                  file_url: data.url || data.path,
+                  file_name: data.filename || data.originalName
+                }));
+                toast({ title: 'File Uploaded', description: 'Document file attached successfully' });
+              }}
+              maxSize={10 * 1024 * 1024}
+              allowedExtensions={['.pdf', '.jpg', '.jpeg', '.png']}
+              disabled={!formData.employee_id}
+            />
+            {formData.file_name && (
+              <p className="mt-2 text-xs font-medium text-emerald-600 flex items-center gap-1">
+                <Check className="h-3 w-3" /> Attached: {formData.file_name}
+              </p>
+            )}
+            {!formData.employee_id && (
+              <p className="mt-2 text-[10px] text-amber-600 italic">Please select an employee before uploading.</p>
+            )}
           </div>
+
           <div>
             <Label>Document Name</Label>
             <Input value={formData.document_name} onChange={(e) => setFormData({...formData, document_name: e.target.value})} required />

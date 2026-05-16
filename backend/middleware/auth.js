@@ -13,8 +13,12 @@ async function auth(req, res, next) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             
-            const user = await User.findById(decoded.userId);
-            if (!user || !user.is_active) {
+            // OPTIMIZATION: Select only needed fields and use lean() for faster fetching
+            const user = await User.findById(decoded.userId)
+                .select('tenant_id role is_active full_name email status')
+                .lean();
+
+            if (!user || user.status === 'inactive') {
                 return res.status(401).json({ error: 'User not found or inactive', code: 'USER_INACTIVE' });
             }
 

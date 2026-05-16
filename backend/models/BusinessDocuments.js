@@ -235,7 +235,12 @@ const salesInvoiceSchema = new mongoose.Schema({
     approvedAt: String,
     rejectedBy: String,
     rejectedAt: String,
-    rejectedReason: String
+    rejectedReason: String,
+    attachments: [{
+        file_url: String,
+        file_name: String,
+        uploaded_at: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 salesInvoiceSchema.index({ customerId: 1 });
@@ -275,7 +280,12 @@ const salesQuotationSchema = new mongoose.Schema({
     approvedAt: String,
     rejectedBy: String,
     rejectedAt: String,
-    rejectedReason: String
+    rejectedReason: String,
+    attachments: [{
+        file_url: String,
+        file_name: String,
+        uploaded_at: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 salesQuotationSchema.index({ customerId: 1 });

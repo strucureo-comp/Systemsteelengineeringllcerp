@@ -432,20 +432,28 @@ router.post('/journals/:id/submit', async (req, res) => {
 
 // Post approved journal entry (updates account balances)
 router.post('/journals/:id/post', async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const tenant_id = tenantIdFromReq(req);
-        const entry = await JournalEntry.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id }));
-        
-        if (!entry) return res.status(404).json({ error: 'Journal entry not found' });
-        
+        const entry = await JournalEntry.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id })).session(session);
+
+        if (!entry) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: 'Journal entry not found' });
+        }
+
         if (entry.status !== 'approved') {
-            return res.status(400).json({ 
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({
                 error: 'Only approved journal entries can be posted',
                 currentStatus: entry.status
             });
         }
 
-        // Update account balances for each line item
+        // Update account balances for each line item within the transaction
         for (const line of entry.lines) {
             await Account.findOneAndUpdate(
                 { tenant_id, code: line.account_code },
@@ -454,23 +462,27 @@ router.post('/journals/:id/post', async (req, res) => {
                         balance: line.debit_base - line.credit_base
                     }
                 },
-                { upsert: false }
+                { upsert: false, session }
             );
         }
 
         entry.status = 'posted';
         entry.posted_at = new Date();
-        await entry.save();
+        await entry.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         res.json({
             message: 'Journal entry posted successfully',
             entry
         });
     } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
         res.status(500).json({ error: 'Failed to post journal entry', detail: err.message });
     }
 });
-
 router.delete('/journals/:id', async (req, res) => {
     try {
         const tenant_id = tenantIdFromReq(req);

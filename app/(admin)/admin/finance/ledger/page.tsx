@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { ModuleGuard } from '@/components/shared/layout/module-guard';
 
 type AccountForm = { code: string; name: string; type: string };
-type JournalForm = { description: string; accountCode: string; debit: number; credit: number };
+type JournalForm = { description: string; debitAccountCode: string; creditAccountCode: string; amount: number };
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
@@ -33,7 +33,7 @@ export default function FinanceLedgerPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [journals, setJournals] = useState<any[]>([]);
   const [accountForm, setAccountForm] = useState<AccountForm>({ code: '', name: '', type: 'asset' });
-  const [journalForm, setJournalForm] = useState<JournalForm>({ description: '', accountCode: '', debit: 0, credit: 0 });
+  const [journalForm, setJournalForm] = useState<JournalForm>({ description: '', debitAccountCode: '', creditAccountCode: '', amount: 0 });
 
   const loadData = async () => {
     try {
@@ -77,30 +77,37 @@ export default function FinanceLedgerPage() {
   };
 
   const submitJournal = async () => {
-    if (!journalForm.description || !journalForm.accountCode) {
-      toast.error('Description and account are required');
+    if (!journalForm.description || !journalForm.debitAccountCode || !journalForm.creditAccountCode) {
+      toast.error('Description and accounts are required');
       return;
     }
 
-    if (Number(journalForm.debit) <= 0 && Number(journalForm.credit) <= 0) {
-      toast.error('Enter debit or credit amount');
+    if (Number(journalForm.amount) <= 0) {
+      toast.error('Enter a valid amount');
       return;
     }
 
     try {
       await createJournalEntry({
         description: journalForm.description,
+        date: new Date().toISOString(),
         lines: [
           {
-            accountCode: journalForm.accountCode,
+            account_code: journalForm.debitAccountCode,
             description: journalForm.description,
-            debit: Number(journalForm.debit || 0),
-            credit: Number(journalForm.credit || 0),
+            debit: Number(journalForm.amount),
+            credit: 0,
+          },
+          {
+            account_code: journalForm.creditAccountCode,
+            description: journalForm.description,
+            debit: 0,
+            credit: Number(journalForm.amount),
           },
         ],
       });
       toast.success('Journal entry posted');
-      setJournalForm({ description: '', accountCode: '', debit: 0, credit: 0 });
+      setJournalForm({ description: '', debitAccountCode: '', creditAccountCode: '', amount: 0 });
       await loadData();
     } catch (error: any) {
       toast.error(error?.message || 'Failed to post journal entry');
@@ -190,19 +197,19 @@ export default function FinanceLedgerPage() {
               <Label className="text-[10px] font-bold uppercase text-muted-foreground">Memo / Description</Label>
               <Input className="h-9" value={journalForm.description} onChange={(e) => setJournalForm((p) => ({ ...p, description: e.target.value }))} />
             </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Target Account Code</Label>
-              <Input className="h-9" value={journalForm.accountCode} onChange={(e) => setJournalForm((p) => ({ ...p, accountCode: e.target.value }))} />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Debit</Label>
-                <Input className="h-9" type="number" value={journalForm.debit} onChange={(e) => setJournalForm((p) => ({ ...p, debit: Number(e.target.value || 0) }))} />
+                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Debit Account</Label>
+                <Input className="h-9" value={journalForm.debitAccountCode} onChange={(e) => setJournalForm((p) => ({ ...p, debitAccountCode: e.target.value }))} placeholder="e.g. 1000" />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Credit</Label>
-                <Input className="h-9" type="number" value={journalForm.credit} onChange={(e) => setJournalForm((p) => ({ ...p, credit: Number(e.target.value || 0) }))} />
+                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Credit Account</Label>
+                <Input className="h-9" value={journalForm.creditAccountCode} onChange={(e) => setJournalForm((p) => ({ ...p, creditAccountCode: e.target.value }))} placeholder="e.g. 2000" />
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Amount</Label>
+              <Input className="h-9" type="number" value={journalForm.amount} onChange={(e) => setJournalForm((p) => ({ ...p, amount: Number(e.target.value || 0) }))} />
             </div>
             <Button variant="secondary" className="w-full h-9 font-bold uppercase text-[10px] tracking-widest" onClick={submitJournal}>Commit Entry</Button>
           </CardContent>

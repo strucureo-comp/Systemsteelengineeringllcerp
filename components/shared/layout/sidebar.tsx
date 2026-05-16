@@ -88,8 +88,7 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
     };
 
     loadSettings();
-    const interval = setInterval(loadSettings, 30000);
-    return () => clearInterval(interval);
+    // OPTIMIZATION: Removed 30s interval. Settings are mostly static and now cached by backend.
   }, []);
 
   return (

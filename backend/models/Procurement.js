@@ -52,7 +52,12 @@ const purchaseOrderSchema = new mongoose.Schema({
     delivery_date: Date,
     terms: String,
     payment_terms: String,
-    due_date: Date
+    due_date: Date,
+    attachments: [{
+        file_url: String,
+        file_name: String,
+        uploaded_at: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 purchaseOrderSchema.index({ vendor_id: 1 });
@@ -93,7 +98,12 @@ const grnSchema = new mongoose.Schema({
         quantity_received: Number,
         location_id: String // Warehouse location
     }],
-    notes: String
+    notes: String,
+    attachments: [{
+        file_url: String,
+        file_name: String,
+        uploaded_at: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 const PurchaseRequest = mongoose.models.PurchaseRequest || mongoose.model('PurchaseRequest', purchaseRequestSchema);

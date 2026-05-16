@@ -4,6 +4,7 @@ const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = rateLimit;
 const mongoSanitize = require('express-mongo-sanitize');
@@ -57,6 +58,35 @@ const settingsUploadsRoutes = require('./routes/settings-uploads');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// ============================================================================
+// PERFORMANCE MIDDLEWARE
+// ============================================================================
+app.use(compression()); // Gzip/Brotli compression
+
+// Cache-Control & Performance Headers
+app.use((req, res, next) => {
+    // Prevent caching for API data by default for consistency/security
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    // Optimization: Browser Caching for Lookup/Static data
+    // These tables change rarely and are used in many forms
+    if (req.method === 'GET') {
+        const path = req.path;
+        if (
+            path.includes('/currencies') || 
+            path.includes('/tax-configuration') || 
+            path.includes('/roles') ||
+            path.includes('/branding')
+        ) {
+            // Allow 2-minute client-side caching for high-frequency lookup tables
+            res.set('Cache-Control', 'public, max-age=120'); 
+        }
+    }
+    next();
+});
 
 // Create uploads directory structure on startup
 const UPLOAD_ROOT = path.join(__dirname, '../uploads');

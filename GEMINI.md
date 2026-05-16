@@ -1,5 +1,15 @@
 # Project Guidelines
 
+## 🗺️ Documentation Map
+Use this map to find the right documentation for your task:
+- **Project Index:** [docs/index.md](docs/index.md) - Start here for a general overview.
+- **Architecture:** [docs/architecture.md](docs/architecture.md) - High-level system design and tech stack.
+- **ERP Modules:** [docs/modules.md](docs/modules.md) - **USE THIS** to understand the business logic, models, and routes for specific ERP features (Finance, HR, CRM, etc.).
+- **Backend Guide:** [docs/backend.md](docs/backend.md) - Deep dive into API structure, security, and services.
+- **Frontend Guide:** [docs/frontend.md](docs/frontend.md) - Next.js structure, components, and styling patterns.
+- **CI/CD:** [docs/ci-cd.md](docs/ci-cd.md) - Build pipelines and deployment info.
+- **Testing:** [docs/testing.md](docs/testing.md) - **MANDATORY** reading for quality assurance and autonomous testing workflows.
+
 ## Core Development Mandate
 - **Simplicity:** Favor simple, readable solutions over complex architectures.
 - **Speed:** Aim for efficient implementations.

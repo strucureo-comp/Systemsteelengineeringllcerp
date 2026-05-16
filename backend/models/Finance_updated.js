@@ -11,7 +11,7 @@ const invoiceItemSchema = new mongoose.Schema({
 });
 
 const invoiceSchema = new mongoose.Schema({
-    tenant_id: { type: String, index: true, default: 'default', required: true },
+    tenant_id: { type: String, default: 'default', required: true },
     invoice_number: { type: String, required: true },
     type: { type: String, enum: ['invoice', 'credit_note', 'debit_note'], default: 'invoice', index: true },
     customer_name: { type: String, required: true, trim: true },
@@ -48,7 +48,7 @@ invoiceSchema.index({ tenant_id: 1, issue_date: -1 });
 
 // ===== EXPENSE SCHEMA =====
 const expenseSchema = new mongoose.Schema({
-    tenant_id: { type: String, index: true, default: 'default', required: true },
+    tenant_id: { type: String, default: 'default', required: true },
     expense_number: { type: String },
     category: { type: String, required: true, trim: true, index: true },
     vendor_id: { type: String },
@@ -83,7 +83,7 @@ expenseSchema.plugin(softDeletePlugin);
 
 // ===== RECURRING EXPENSE SCHEMA =====
 const recurringExpenseSchema = new mongoose.Schema({
-    tenant_id: { type: String, index: true, default: 'default', required: true },
+    tenant_id: { type: String, default: 'default', required: true },
     category: { type: String, required: true, trim: true },
     vendor_id: { type: String },
     vendor: { type: String, trim: true },
@@ -112,7 +112,7 @@ recurringExpenseSchema.plugin(softDeletePlugin);
 
 // ===== ACCOUNT (COA) SCHEMA =====
 const accountSchema = new mongoose.Schema({
-    tenant_id: { type: String, index: true, default: 'default', required: true },
+    tenant_id: { type: String, default: 'default', required: true },
     code: { type: String, required: true, trim: true, uppercase: true },
     name: { type: String, required: true, trim: true },
     type: { 
@@ -145,7 +145,7 @@ const journalLineSchema = new mongoose.Schema({
 });
 
 const journalEntrySchema = new mongoose.Schema({
-    tenant_id: { type: String, index: true, default: 'default', required: true },
+    tenant_id: { type: String, default: 'default', required: true },
     entry_number: { type: String },
     date: { type: Date, default: Date.now, index: true },
     posting_date: { type: Date, index: true },

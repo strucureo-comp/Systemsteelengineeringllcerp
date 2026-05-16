@@ -62,23 +62,30 @@ class ReportService {
    */
   async calculateRevenue(tenantId, startDate, endDate) {
     try {
-      const invoices = await this.db.collection('invoices').find({
-        tenantId,
-        status: { $in: ['paid', 'sent', 'partial'] },
-        issue_date: { $gte: startDate, $lte: endDate }
-      }).toArray();
+      // OPTIMIZATION: Use aggregation pipeline for heavy summation
+      const [invoiceRevenue, salesRevenue] = await Promise.all([
+        this.db.collection('invoices').aggregate([
+          { $match: { 
+            tenantId, 
+            status: { $in: ['paid', 'sent', 'partial'] },
+            issue_date: { $gte: startDate, $lte: endDate }
+          }},
+          { $group: { _id: null, total: { $sum: "$total" } } }
+        ]).toArray(),
+        this.db.collection('salesorders').aggregate([
+          { $match: { 
+            tenantId, 
+            status: 'completed',
+            order_date: { $gte: startDate, $lte: endDate },
+            type: 'service'
+          }},
+          { $group: { _id: null, total: { $sum: "$total" } } }
+        ]).toArray()
+      ]);
 
-      const salesOrders = await this.db.collection('salesorders').find({
-        tenantId,
-        status: 'completed',
-        order_date: { $gte: startDate, $lte: endDate }
-      }).toArray();
-
-      const productRevenue = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-      const serviceRevenue = salesOrders
-        .filter(so => so.type === 'service')
-        .reduce((sum, so) => sum + (so.total || 0), 0);
-      const otherRevenue = 0; // Can be extended
+      const productRevenue = invoiceRevenue[0]?.total || 0;
+      const serviceRevenue = salesRevenue[0]?.total || 0;
+      const otherRevenue = 0;
 
       return {
         product: productRevenue,
@@ -102,21 +109,28 @@ class ReportService {
    */
   async calculateCOGS(tenantId, startDate, endDate) {
     try {
-      const productionOrders = await this.db.collection('productionorders').find({
-        tenantId,
-        status: 'completed',
-        completionDate: { $gte: startDate, $lte: endDate }
-      }).toArray();
+      // OPTIMIZATION: Use aggregation for COGS
+      const result = await this.db.collection('productionorders').aggregate([
+        { $match: { 
+          tenantId, 
+          status: 'completed',
+          completionDate: { $gte: startDate, $lte: endDate }
+        }},
+        { $group: { 
+          _id: null, 
+          material: { $sum: "$materialCost" },
+          labor: { $sum: "$laborCost" },
+          overhead: { $sum: "$overheadCost" }
+        }}
+      ]).toArray();
 
-      const materialCost = productionOrders.reduce((sum, po) => sum + (po.materialCost || 0), 0);
-      const laborCost = productionOrders.reduce((sum, po) => sum + (po.laborCost || 0), 0);
-      const overheadCost = productionOrders.reduce((sum, po) => sum + (po.overheadCost || 0), 0);
+      const data = result[0] || { material: 0, labor: 0, overhead: 0 };
 
       return {
-        material: materialCost,
-        labor: laborCost,
-        overhead: overheadCost,
-        total: materialCost + laborCost + overheadCost
+        material: data.material,
+        labor: data.labor,
+        overhead: data.overhead,
+        total: data.material + data.labor + data.overhead
       };
     } catch (error) {
       return { material: 0, labor: 0, overhead: 0, total: 0 };
@@ -125,15 +139,29 @@ class ReportService {
 
   async calculateExpenses(tenantId, startDate, endDate) {
     try {
-      const expenses = await this.db.collection('expenses').find({
-        tenantId,
-        date: { $gte: startDate, $lte: endDate },
-        status: 'approved'
-      }).toArray();
+      // OPTIMIZATION: Use aggregation for expenses grouping
+      const results = await this.db.collection('expenses').aggregate([
+        { $match: { 
+          tenantId, 
+          date: { $gte: startDate, $lte: endDate },
+          status: 'approved'
+        }},
+        { $group: { 
+          _id: "$category", 
+          total: { $sum: "$amount" } 
+        }}
+      ]).toArray();
 
-      const operating = expenses.filter(e => e.category === 'operating').reduce((sum, e) => sum + (e.amount || 0), 0);
-      const interest = expenses.filter(e => e.category === 'interest').reduce((sum, e) => sum + (e.amount || 0), 0);
-      const other = expenses.filter(e => !['operating', 'interest'].includes(e.category)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const mapped = results.reduce((acc, curr) => {
+        acc[curr._id] = curr.total;
+        return acc;
+      }, {});
+
+      const operating = mapped.operating || 0;
+      const interest = mapped.interest || 0;
+      const other = Object.entries(mapped)
+        .filter(([k]) => !['operating', 'interest'].includes(k))
+        .reduce((sum, [, v]) => sum + v, 0);
 
       return { operating, interest, other, total: operating + interest + other };
     } catch (error) {

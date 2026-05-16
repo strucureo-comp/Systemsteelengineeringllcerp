@@ -118,7 +118,7 @@ router.post('/signup', validate(registerValidator), async (req, res) => {
             return res.status(400).json({ error: passwordValidation.error });
         }
 
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        const existingUser = await User.findOne({ email: email.toLowerCase() }).lean();
         if (existingUser) {
             return res.status(400).json({ error: 'Email already registered' });
         }
@@ -232,9 +232,10 @@ router.post('/refresh', async (req, res) => {
         // Generate new access token
         const accessToken = generateAccessToken(user);
 
+        const userJson = user.toJSON ? user.toJSON() : user;
         res.json({
             token: accessToken,
-            user: user.toJSON()
+            user: userJson
         });
     } catch (error) {
         console.error('[Auth] Refresh Error:', error);
@@ -274,7 +275,9 @@ router.post('/logout', auth, async (req, res) => {
 
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
-    res.json({ user: req.user.toJSON() });
+    // If req.user is a lean object (from optimization), it won't have .toJSON()
+    const userJson = req.user.toJSON ? req.user.toJSON() : req.user;
+    res.json({ user: userJson });
 });
 
 
@@ -292,7 +295,7 @@ router.post('/forgot-password', validate(forgotPasswordValidator), async (req, r
         }
 
         // Always return success to prevent email enumeration
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const user = await User.findOne({ email: email.toLowerCase() }).lean();
         
         if (user) {
             // Generate raw token
@@ -428,7 +431,7 @@ router.post('/invite', auth, adminOnly, validate(inviteValidator), async (req, r
         }
 
         // Check if user already exists
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        const existingUser = await User.findOne({ email: email.toLowerCase() }).lean();
         if (existingUser) {
             return res.status(400).json({ error: 'User with this email already exists' });
         }
@@ -439,7 +442,7 @@ router.post('/invite', auth, adminOnly, validate(inviteValidator), async (req, r
             tenant_id,
             used: false,
             expires_at: { $gt: new Date() }
-        });
+        }).lean();
 
         if (existingInvite) {
             return res.status(400).json({ error: 'An invitation has already been sent to this email' });
@@ -511,7 +514,8 @@ router.get('/invites', auth, adminOnly, async (req, res) => {
             expires_at: { $gt: new Date() }
         })
         .populate('invited_by', 'full_name email')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
 
         res.json({ success: true, data: invites });
     } catch (error) {
@@ -664,7 +668,8 @@ router.get('/users', auth, async (req, res) => {
                 .populate('invited_by', 'full_name')
                 .sort({ full_name: 1 })
                 .skip(skip)
-                .limit(limit),
+                .limit(limit)
+                .lean(),
             User.countDocuments(filter)
         ]);
 
@@ -688,7 +693,7 @@ router.get('/users', auth, async (req, res) => {
 router.get('/users/:id', auth, async (req, res) => {
     try {
         const tenant_id = req.user?.tenant_id || 'default';
-        const user = await User.findOne({ _id: req.params.id, tenant_id }).select('-password');
+        const user = await User.findOne({ _id: req.params.id, tenant_id }).select('-password').lean();
         
         if (!user) {
             return res.status(404).json({ success: false, error: 'User not found' });

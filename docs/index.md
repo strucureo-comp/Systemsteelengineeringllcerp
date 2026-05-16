@@ -1,16 +1,30 @@
-# Project Wiki
+# BridgeBreak ERP Documentation Wiki
 
-Welcome to the documentation wiki for the BridgeBreak ERP / Systemsteelengineeringllcerp project.
+Welcome to the comprehensive documentation for the BridgeBreak ERP system. This wiki serves as the primary source of truth for the system's architecture, development patterns, and module functionality.
 
-This project uses a Next.js (App Router) frontend and an Express.js backend with Mongoose.
+## 📚 Documentation Sections
 
-## Wiki Pages
-- [Architecture & Tech Stack](architecture.md)
-- [Frontend Guide](frontend.md)
-- [Backend Guide](backend.md)
-- [Development Workflow & Testing](testing.md)
+### [🏗️ Architecture & Tech Stack](architecture.md)
+Detailed overview of the system's high-level architecture, technology choices, and integration patterns.
 
-## Development Principles
-- **Simplicity:** Keep the codebase straightforward.
-- **Speed:** Develop features efficiently without over-engineering.
-- **Consistency:** Follow standard Next.js and Express patterns.
+### [📦 ERP Modules Guide](modules.md)
+A deep dive into the functional modules of the ERP (Finance, HR, CRM, etc.), including their backend routes, models, and core features.
+
+### [🚀 Backend Guide](backend.md)
+Information on the Express.js API, database schemas, security middleware, and core services.
+
+### [🎨 Frontend Guide](frontend.md)
+Guidance on the Next.js App Router structure, Radix UI components, and state management.
+
+### [⚙️ CI/CD & Deployment](ci-cd.md)
+Documentation on the automated build pipeline, Docker configuration, and deployment strategies.
+
+### [🧪 Development Workflow & Testing](testing.md)
+Mandatory guidelines for developing and testing features, including autonomous browser testing via Gemini CLI.
+
+---
+
+## 🛠️ Core Tech Stack
+- **Frontend:** Next.js 13+ (App Router), TypeScript, Tailwind CSS, Radix UI.
+- **Backend:** Express.js, MongoDB (Mongoose), Node.js.
+- **DevOps:** GitHub Actions, Docker, Netlify (Frontend), Render/DigitalOcean (Backend).

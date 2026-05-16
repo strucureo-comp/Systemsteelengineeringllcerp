@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Save, Send, Check, X, FileText, Download, Eye, Edit, Loader2, Search, Printer } from 'lucide-react';
+import { Plus, Trash2, Save, Send, Check, X, FileText, Download, Eye, Edit, Loader2, Search, Printer, Paperclip } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateQuotationPDF } from '@/lib/pdf-generator';
@@ -21,6 +21,7 @@ import { useCompanySettings } from '@/lib/hooks/use-company-settings';
 import { formatCurrency } from '@/lib/utils/currency';
 import { DashboardShell } from '@/components/shared/layout/dashboard-shell';
 import { ModuleGuard } from '@/components/shared/layout/module-guard';
+import { FileUpload } from '@/components/shared/FileUpload';
 
 interface QuotationItem {
     id: string;
@@ -51,6 +52,7 @@ interface SalesQuotation {
     rejectedBy?: string;
     rejectedAt?: string;
     rejectedReason?: string;
+    attachments?: { file_url: string; file_name: string; uploaded_at?: string }[];
 }
 
 export default function QuotationsPage() {
@@ -192,6 +194,7 @@ export default function QuotationsPage() {
             notes: editingQuotation.notes || '',
             status: editingQuotation.status || 'draft',
             createdBy: editingQuotation.createdBy || 'Current User',
+            attachments: editingQuotation.attachments || []
         };
 
         try {
@@ -500,9 +503,38 @@ export default function QuotationsPage() {
                                 <Button variant="outline" size="sm" onClick={handleAddItem}><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label>{taxName} Rate (%)</Label><Input type="number" value={editingQuotation.taxRate || taxRate} onChange={e => { const rate = parseFloat(e.target.value) || 0; setEditingQuotation(prev => ({ ...prev, taxRate: rate, ...calculateTotals({ ...prev, taxRate: rate }) })); }} /></div>
+                                <div className="space-y-2"><Label>{taxName} Rate (%)</Label><Input type="number" value={editingQuotation.taxRate || taxRate} onChange={(e) => { const rate = parseFloat(e.target.value) || 0; setEditingQuotation(prev => ({ ...prev, taxRate: rate })); }} /></div>
                                 <div className="space-y-2"><Label>Notes</Label><Input value={editingQuotation.notes || ''} onChange={e => setEditingQuotation({ ...editingQuotation, notes: e.target.value })} /></div>
                             </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-primary">Supporting Attachments</Label>
+                                <FileUpload 
+                                    endpoint="/settings/uploads" 
+                                    onUploadComplete={(data) => {
+                                        setEditingQuotation(prev => ({
+                                            ...prev,
+                                            attachments: [...(prev.attachments || []), {
+                                                file_url: data.url || data.path,
+                                                file_name: data.filename || data.originalName
+                                            }]
+                                        }));
+                                        toast.success('File attached to quotation');
+                                    }}
+                                />
+                                {editingQuotation.attachments && editingQuotation.attachments.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {editingQuotation.attachments.map((file, idx) => (
+                                            <Badge key={idx} variant="secondary" className="flex items-center gap-1 py-1">
+                                                <Paperclip className="h-3 w-3" />
+                                                <span className="max-w-[100px] truncate">{file.file_name}</span>
+                                                <X className="h-3 w-3 cursor-pointer hover:text-red-600" onClick={() => setEditingQuotation(prev => ({ ...prev, attachments: prev.attachments?.filter((_, i) => i !== idx) }))} />
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="border-t pt-4 space-y-2">
                                 <div className="flex justify-between"><span>Subtotal:</span><span>{formatCurrencyValue(editingQuotation.subtotal || 0)}</span></div>
                                 <div className="flex justify-between"><span>Tax:</span><span>{formatCurrencyValue(editingQuotation.taxAmount || 0)}</span></div>

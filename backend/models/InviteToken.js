@@ -22,13 +22,11 @@ const inviteTokenSchema = new mongoose.Schema({
     token_hash: { 
         type: String, 
         required: true,
-        unique: true,
-        index: true 
+        unique: true
     },
     expires_at: { 
         type: Date, 
-        required: true,
-        index: true 
+        required: true
     },
     invited_by: { 
         type: mongoose.Schema.Types.ObjectId, 
