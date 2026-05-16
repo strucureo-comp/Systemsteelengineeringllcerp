@@ -122,7 +122,7 @@ export default function VendorsListPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {filteredVendors.map((v, idx) => {
+                                {filteredVendors.map((v: any, idx) => {
                                     const vendorId = String(v.id ?? `vendor-${idx}`);
                                     return (
                                     <tr key={vendorId} className="hover:bg-zinc-50/50 transition-colors group">

@@ -25,11 +25,12 @@ export default function ProfileSettingsPage() {
 
     useEffect(() => {
         if (user) {
-            setFullName(user.full_name || '');
-            setSignatureUrl(user.signature_url || null);
-            setAckTitle(user.acknowledgement_title || 'RECEIVER ACKNOWLEDGEMENT');
-            setAckSigLabel(user.acknowledgement_signature_label || 'SIGNATURE / COMPANY STAMP');
-            setAckNameLabel(user.acknowledgement_name_label || 'NAME');
+            const u = user as any;
+            setFullName(u.full_name || '');
+            setSignatureUrl(u.signature_url || null);
+            setAckTitle(u.acknowledgement_title || 'RECEIVER ACKNOWLEDGEMENT');
+            setAckSigLabel(u.acknowledgement_signature_label || 'SIGNATURE / COMPANY STAMP');
+            setAckNameLabel(u.acknowledgement_name_label || 'NAME');
         }
     }, [user]);
 

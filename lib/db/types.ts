@@ -937,12 +937,21 @@ export interface PurchaseRequest {
 export interface Vendor {
   id: string;
   name: string;
+  legal_name?: string;
   contact_person?: string;
   email?: string;
   phone?: string;
-  address?: string;
+  address?: string | {
+    street?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  };
   vat_no?: string;
+  tax_registration_no?: string;
   tax_id?: string; // Alias for vat_no
+  country_code?: string;
   created_at: string;
   updated_at: string;
 }

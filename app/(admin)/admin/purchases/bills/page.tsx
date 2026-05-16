@@ -168,12 +168,12 @@ export default function VendorBillsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                {bill.status === 'draft' && (
+                                                {(bill.status as any) === 'draft' && (
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-blue-600" onClick={() => handleSubmit(bill)} title="Submit for Approval">
                                                         <Send size={16} />
                                                     </Button>
                                                 )}
-                                                {bill.status === 'pending_approval' && (
+                                                {(bill.status as any) === 'pending_approval' && (
                                                     <>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-emerald-600" onClick={() => handleApprove(bill)} title="Approve">
                                                             <Check size={16} />

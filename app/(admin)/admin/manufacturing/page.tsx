@@ -104,7 +104,7 @@ export default function ManufacturingPage() {
       {/* Inline Quick Insights */}
       <div className="pt-4">
         <h2 className="text-base font-semibold mb-4">Production Insights</h2>
-        <AnalyticsDashboard isCompact />
+        <AnalyticsDashboard />
       </div>
     </div>
   );

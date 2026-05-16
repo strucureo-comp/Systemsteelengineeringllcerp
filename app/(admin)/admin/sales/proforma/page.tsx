@@ -273,8 +273,9 @@ export default function ProformaInvoicesPage() {
         setDialogOpen(true);
     };
 
-    const getStatusBadge = (status: DocumentStatus) => {
-        const info = getStatusInfo(status);
+    const getStatusBadge = (s: DocumentStatus) => {
+        const status = s as any;
+        const info = getStatusInfo(s);
         return (
             <Badge variant="outline" className={cn(
                 "text-[10px]",
@@ -356,7 +357,7 @@ export default function ProformaInvoicesPage() {
                                         variant="ghost"
                                         size="sm"
                                         className="h-8 text-xs"
-                                        disabled={Boolean(invoice.convertedToInvoiceNumber) || invoice.status === 'converted'}
+                                        disabled={Boolean(invoice.convertedToInvoiceNumber) || (invoice.status as any) === 'converted'}
                                         onClick={() => handleConvert(invoice)}
                                     >
                                         {invoice.convertedToInvoiceNumber ? `Converted: ${invoice.convertedToInvoiceNumber}` : 'Convert'}

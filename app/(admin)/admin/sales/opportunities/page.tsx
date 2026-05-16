@@ -599,9 +599,9 @@ export default function SalesOpportunitiesPage() {
                                             "flex flex-col gap-3 min-h-[300px] rounded-lg transition-colors",
                                             dragOverStageId === stage.id && "bg-primary/5 ring-2 ring-primary/20 ring-inset"
                                         )}
-                                        onDragOver={(e) => handleStageDragOver(e, stage.id)}
-                                        onDragLeave={() => handleStageDragLeave(stage.id)}
-                                        onDrop={(e) => handleStageDrop(e, stage.id)}
+                                        onDragOver={(e) => handleStageDragOver(e, stage.id as any)}
+                                        onDragLeave={() => handleStageDragLeave(stage.id as any)}
+                                        onDrop={(e) => handleStageDrop(e, stage.id as any)}
                                     >
                                         {stageOpps.map((opp, idx) => {
 
@@ -642,7 +642,7 @@ export default function SalesOpportunitiesPage() {
                                                     onDragStart={(e) => handleDragStart(opp.id, e)}
                                                     onDragEnd={handleDragEnd}
                                                     onDragOver={(e) => e.preventDefault()}
-                                                    onDrop={(e) => handleStageDrop(e, stage.id)}
+                                                    onDrop={(e) => handleStageDrop(e, stage.id as any)}
                                                     className={cn(
                                                         "border-border shadow-sm bg-card transition-all group overflow-hidden cursor-grab active:cursor-grabbing",
                                                         draggedOpportunityId === opp.id && "opacity-50 ring-2 ring-primary/20",

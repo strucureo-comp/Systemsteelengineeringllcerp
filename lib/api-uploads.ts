@@ -5,9 +5,9 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/backend';
 
-function authHeaders() {
+function authHeaders(): HeadersInit {
     const token = typeof window !== 'undefined' ? localStorage.getItem('bb_token') : null;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return (token ? { Authorization: `Bearer ${token}` } : {}) as HeadersInit;
 }
 
 // ═══════════════════════════════════════

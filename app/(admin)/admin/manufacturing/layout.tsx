@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-    Factory, Package, ClipboardCheck, Analytics, 
+    Factory, Package, ClipboardCheck, Activity, 
     Settings, ChevronRight, LayoutDashboard,
     FileText, Hammer, ShieldCheck, PieChart
 } from 'lucide-react';

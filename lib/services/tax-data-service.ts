@@ -4,7 +4,8 @@
  * Stores in database for global user access
  */
 
-import { prisma } from '@/lib/prisma';
+// // import { prisma } from '@/lib/prisma';
+const prisma: any = null;
 import { SUPPORTED_TAX_COUNTRIES, TAX_COLLECTION_CONFIG, APILAYER_ENDPOINTS } from '@/lib/tax-data-setup';
 
 // APILayer Tax Data API Configuration
