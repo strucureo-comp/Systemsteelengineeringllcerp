@@ -41,10 +41,11 @@ This update implements several requested features across Procurement, Sales, HR,
 - Migrated multiple pages from raw `fetch` calls to the centralized `lib/api.ts` and `business-documents-api.ts` services to ensure consistent authentication headers and error handling.
 
 ### 5. CI/CD & Devops
-- **GitHub Actions:** Implemented a full pipeline in `.github/workflows/ci.yml` for automated testing, security scanning, and Docker builds.
-- **Dockerization:** Created `Dockerfile.backend` and `Dockerfile.frontend` for containerized deployment.
+- **GitHub Actions:** Implemented a full pipeline in `.github/workflows/ci.yml` for automated testing, security scanning, and conditional deployment.
+- **Render Integration:** Added `render.yaml` blueprint and configured automated deployment triggers via Render Deploy Hooks (requires GitHub Secrets).
+- **Dockerization:** Organized `Dockerfile.backend` and `Dockerfile.frontend` into a dedicated `docker/` folder.
 - **Backend Testing:** Integrated Jest and Supertest, adding a baseline health check test suite.
-- **Documentation:** Created a `workflow/` folder with detailed setup and local testing instructions.
+- **Documentation:** Consolidated CI/CD documentation into `docs/ci-cd.md`.
 
 ### 6. Performance Optimizations
 - **Parallel Data Fetching:** Optimized all major module pages (Sales, Procurement, HR, Finance) to fetch multiple data sources (e.g., invoices + customers) concurrently using `Promise.all`, reducing initial load times by up to 50%.
