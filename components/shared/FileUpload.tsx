@@ -30,6 +30,7 @@ interface FileUploadProps {
     onSuccess: (files: Attachment[]) => void;
     existingFiles?: Attachment[];
     onDelete?: (attachmentId: string) => Promise<void>;
+    disabled?: boolean;
 }
 
 export function FileUpload({
@@ -41,7 +42,8 @@ export function FileUpload({
     expiryDate = false,
     onSuccess,
     existingFiles = [],
-    onDelete
+    onDelete,
+    disabled = false
 }: FileUploadProps) {
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -224,7 +226,7 @@ export function FileUpload({
                     'border-2 border-dashed transition-colors',
                     dragActive && 'border-primary bg-primary/5',
                     error && 'border-destructive',
-                    uploading && 'opacity-50 pointer-events-none'
+                    (uploading || disabled) && 'opacity-50 pointer-events-none'
                 )}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -239,7 +241,7 @@ export function FileUpload({
                         multiple={multiple}
                         onChange={handleFileInput}
                         className="hidden"
-                        disabled={uploading}
+                        disabled={uploading || disabled}
                     />
 
                     {uploading ? (

@@ -149,6 +149,13 @@ export default function SalesInvoicesPage() {
         return { subtotal, taxAmount, total };
     }, [editingInvoice.items, editingInvoice.taxRate]);
 
+    const calculateTotals = (invoice: Partial<SalesInvoice>) => {
+        const subtotal = invoice.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) || 0;
+        const taxAmount = subtotal * (invoice.taxRate || 0) / 100;
+        const total = subtotal + taxAmount;
+        return { subtotal, taxAmount, total };
+    };
+
     const handleAddItem = () => {
         const newItem: InvoiceItem = {
             id: Date.now().toString(),
@@ -553,9 +560,9 @@ export default function SalesInvoicesPage() {
                             </div>
 
                             <div className="border-t pt-4 space-y-2">
-                                <div className="flex justify-between"><span>Subtotal:</span><span>{formatCurrency(editingInvoice.subtotal || 0, baseCurrency)}</span></div>
-                                <div className="flex justify-between"><span>{taxName}:</span><span>{formatCurrency(editingInvoice.taxAmount || 0, baseCurrency)}</span></div>
-                                <div className="flex justify-between font-bold text-lg"><span>Total:</span><span>{formatCurrency(editingInvoice.total || 0, baseCurrency)}</span></div>
+                                <div className="flex justify-between"><span>Subtotal:</span><span>{formatCurrency(editingTotals.subtotal, baseCurrency)}</span></div>
+                                <div className="flex justify-between"><span>{taxName}:</span><span>{formatCurrency(editingTotals.taxAmount, baseCurrency)}</span></div>
+                                <div className="flex justify-between font-bold text-lg"><span>Total:</span><span>{formatCurrency(editingTotals.total, baseCurrency)}</span></div>
                             </div>
                         </div>
 

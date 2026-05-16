@@ -511,12 +511,13 @@ export default function QuotationsPage() {
                                 <Label className="text-xs font-bold uppercase tracking-wider text-primary">Supporting Attachments</Label>
                                 <FileUpload 
                                     endpoint="/settings/uploads" 
-                                    onUploadComplete={(data) => {
+                                    onSuccess={(files) => {
+                                        const data = files[0];
                                         setEditingQuotation(prev => ({
                                             ...prev,
                                             attachments: [...(prev.attachments || []), {
-                                                file_url: data.url || data.path,
-                                                file_name: data.filename || data.originalName
+                                                file_url: data.file_url,
+                                                file_name: data.original_name
                                             }]
                                         }));
                                         toast.success('File attached to quotation');

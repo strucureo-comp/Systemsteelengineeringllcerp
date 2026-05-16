@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, FileText, AlertCircle, Calendar, User, Eye } from 'lucide-react';
+import { Plus, FileText, AlertCircle, Calendar, User, Eye, Check } from 'lucide-react';
 import { getEmployeeDocuments, getEmployees, createEmployeeDocument } from '@/lib/api';
 import {
   Table,
@@ -467,16 +467,17 @@ function DocumentDialog({ onSuccess, employees }: any) {
             <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-primary">Upload Document File</Label>
             <FileUpload 
               endpoint={`/hrms/employees/${formData.employee_id}/documents`}
-              onUploadComplete={(data) => {
+              onSuccess={(files) => {
+                const data = files[0];
                 setFormData(prev => ({
                   ...prev,
-                  file_url: data.url || data.path,
-                  file_name: data.filename || data.originalName
+                  file_url: data.file_url,
+                  file_name: data.original_name
                 }));
                 toast({ title: 'File Uploaded', description: 'Document file attached successfully' });
               }}
-              maxSize={10 * 1024 * 1024}
-              allowedExtensions={['.pdf', '.jpg', '.jpeg', '.png']}
+              maxSizeMB={10}
+              accept=".pdf,.jpg,.jpeg,.png"
               disabled={!formData.employee_id}
             />
             {formData.file_name && (
