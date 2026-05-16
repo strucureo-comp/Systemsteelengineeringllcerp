@@ -14,7 +14,6 @@ import { markAttendance, bulkUploadAttendance } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Employee, Attendance, Leave, Holiday } from '@/lib/db/types';
 import { useCompanySettings } from '@/lib/hooks/use-company-settings';
-import { useEffect } from 'react';
 
 interface AttendanceTrackingProps {
   employees: Employee[];
@@ -28,11 +27,6 @@ export function AttendanceTracking({ employees, attendance, leaves, holidays = [
   const { baseCurrency } = useCompanySettings();
   const currentYear = new Date().getFullYear();
 
-  useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');

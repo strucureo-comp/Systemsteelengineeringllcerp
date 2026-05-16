@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Briefcase, User, PenTool, Layers, Package, DollarSign, 
@@ -58,12 +58,6 @@ export function ProjectNodeView({ project, onRefresh }: { project: Project, onRe
   const { tenantStatus } = useTenant();
   const businessType = tenantStatus?.business_type || 'service';
   const { baseCurrency } = useCompanySettings();
-
-  useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
 
   const handleAction = (id: string) => {
     setSelectedNode(id);

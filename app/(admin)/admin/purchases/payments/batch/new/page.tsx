@@ -33,12 +33,6 @@ export default function NewBatchPaymentPage() {
     const [batchNumber, setBatchNumber] = useState(`BATCH-${new Date().getTime().toString().slice(-6)}`);
 
     useEffect(() => {
-        const handler = () => window.location.reload();
-        window.addEventListener('erp_company_settings_changed', handler);
-        return () => window.removeEventListener('erp_company_settings_changed', handler);
-    }, []);
-
-    useEffect(() => {
         fetchData();
     }, []);
 

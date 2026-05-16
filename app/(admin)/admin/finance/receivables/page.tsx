@@ -94,12 +94,6 @@ export default function AccountsReceivableUpgrade() {
     const [tab, setTab] = useState('overview');
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const handler = () => window.location.reload();
-        window.addEventListener('erp_company_settings_changed', handler);
-        return () => window.removeEventListener('erp_company_settings_changed', handler);
-    }, []);
-
     // Data States
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);

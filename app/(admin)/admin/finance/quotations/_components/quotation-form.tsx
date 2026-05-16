@@ -71,12 +71,6 @@ export function QuotationForm({
   const [taxRate, setTaxRate] = useState(settingsTaxRate);
 
   useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
-
-  useEffect(() => {
     setTaxRate(settingsTaxRate);
   }, [settingsTaxRate]);
 

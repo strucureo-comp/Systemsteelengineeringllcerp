@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ModuleGuard } from '@/components/shared/layout/module-guard';
 import { PayrollContent } from '../_components/payroll-content';
 import type { Employee, SalaryStructure, Payroll } from '@/lib/db/types';
+import { getEmployees, getSalaryStructures, getPayrolls } from '@/lib/api';
 
 export default function PayrollPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -15,13 +16,15 @@ export default function PayrollPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/hr/payroll');
-        if (response.ok) {
-          const data = await response.json();
-          setEmployees(data.employees || []);
-          setSalaryStructures(data.salaryStructures || []);
-          setPayrolls(data.payrolls || []);
-        }
+        const [empData, salaryData, payrollData] = await Promise.all([
+          getEmployees(),
+          getSalaryStructures(),
+          getPayrolls()
+        ]);
+
+        setEmployees(empData || []);
+        setSalaryStructures(salaryData || []);
+        setPayrolls(payrollData || []);
       } catch (error) {
         console.error('Failed to fetch payroll data:', error);
       } finally {

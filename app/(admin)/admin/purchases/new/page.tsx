@@ -55,12 +55,6 @@ export default function NewPurchaseOrderPage() {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
 
-  useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
-
   // Form State
   const [poNumber, setPoNumber] = useState(generateRef('PO'));
   const [selectedVendorId, setSelectedVendor] = useState('');

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ModuleGuard } from '@/components/shared/layout/module-guard';
 import { PayslipBrowser } from '../_components/payroll-content';
 import type { Payroll } from '@/lib/db/types';
+import { getPayrolls } from '@/lib/api';
 
 export default function PayslipsPage() {
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
@@ -14,14 +15,10 @@ export default function PayslipsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/hr/payroll');
-        if (response.ok) {
-          const data = await response.json();
-          const payrollData = data.payrolls || [];
-          setPayrolls(payrollData);
-          if (payrollData.length > 0) {
-            setSelectedPayroll(payrollData[0]);
-          }
+        const payrollData = await getPayrolls();
+        setPayrolls(payrollData || []);
+        if (payrollData && payrollData.length > 0) {
+          setSelectedPayroll(payrollData[0]);
         }
       } catch (error) {
         console.error('Failed to fetch payroll data:', error);

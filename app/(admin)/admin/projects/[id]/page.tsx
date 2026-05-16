@@ -119,12 +119,6 @@ export default function AdminProjectDetailPage({ params }: { params: { id: strin
   const formatCurrency = (val: number) => formatCurrencyUtil(val, baseCurrency);
 
   useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
-
-  useEffect(() => {
     const fetchProject = async () => {
       const p = await getProject(params.id);
       if (p) {

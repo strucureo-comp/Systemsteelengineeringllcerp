@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ModuleGuard } from '@/components/shared/layout/module-guard';
 import { AttendanceTracking } from '../_components/attendance-tracking';
 import type { Employee, Attendance, Leave, Holiday } from '@/lib/db/types';
+import { getEmployees, getAttendance, getLeaves, getHolidays } from '@/lib/api';
 
 export default function AttendancePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -16,15 +17,18 @@ export default function AttendancePage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Fetch attendance data from API
-        const response = await fetch('/api/hr/attendance');
-        if (response.ok) {
-          const data = await response.json();
-          setEmployees(data.employees || []);
-          setAttendance(data.attendance || []);
-          setLeaves(data.leaves || []);
-          setHolidays(data.holidays || []);
-        }
+        // Fetch all necessary data in parallel
+        const [empData, attData, leaveData, holidayData] = await Promise.all([
+          getEmployees(),
+          getAttendance(),
+          getLeaves(),
+          getHolidays()
+        ]);
+        
+        setEmployees(empData || []);
+        setAttendance(attData || []);
+        setLeaves(leaveData || []);
+        setHolidays(holidayData || []);
       } catch (error) {
         console.error('Failed to fetch attendance data:', error);
       } finally {

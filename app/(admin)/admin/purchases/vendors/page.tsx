@@ -127,11 +127,11 @@ export default function VendorsListPage() {
                                     return (
                                     <tr key={vendorId} className="hover:bg-zinc-50/50 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <p className="text-xs font-bold text-foreground uppercase">{v.name}</p>
+                                            <p className="text-xs font-bold text-foreground uppercase">{v.legal_name || v.name}</p>
                                             <p className="text-[9px] text-muted-foreground font-mono uppercase mt-0.5">ID: {vendorId.slice(0, 8)}</p>
                                         </td>
                                         <td className="px-6 py-4 text-xs font-bold text-muted-foreground font-mono">
-                                            {v.tax_id || 'NOT REGISTERED'}
+                                            {v.tax_registration_no || v.tax_id || 'NOT REGISTERED'}
                                         </td>
                                         <td className="px-6 py-4">
                                             <p className="text-xs font-bold text-muted-foreground uppercase">{v.contact_person || 'N/A'}</p>

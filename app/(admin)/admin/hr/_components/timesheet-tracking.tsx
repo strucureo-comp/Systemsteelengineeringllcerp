@@ -50,11 +50,6 @@ export function TimesheetTracking({ employees, onRefresh }: TimesheetTrackingPro
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
   const [summary, setSummary] = useState<any[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => {

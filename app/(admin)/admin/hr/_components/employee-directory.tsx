@@ -63,11 +63,6 @@ export function EmployeeDirectory({ employees, departments, roles, documentCount
   const [deptFilter, setDeptFilter] = useState('all');
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [emergencyDialogOpen, setEmergencyDialogOpen] = useState(false);

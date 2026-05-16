@@ -34,12 +34,14 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
         
         try {
             await createVendor({
-                name: fd.get('name') as string,
+                legal_name: fd.get('name') as string,
                 contact_person: fd.get('contact_person') as string,
                 email: fd.get('email') as string,
                 phone: fd.get('phone') as string,
-                address: fd.get('address') as string,
-                tax_id: fd.get('tax_id') as string,
+                address: {
+                    street: fd.get('address') as string,
+                },
+                tax_registration_no: fd.get('tax_id') as string,
                 country_code: fd.get('country_code') as string || 'AE',
             });
             toast.success('Supplier entity registered successfully');

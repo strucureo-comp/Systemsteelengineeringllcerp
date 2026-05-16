@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 import type { Attendance, Employee, Holiday, Leave, Payroll } from '@/lib/db/types';
 import { useCompanySettings } from '@/lib/hooks/use-company-settings';
 import { formatCurrency } from '@/lib/utils/currency';
-import { useEffect } from 'react';
 
 interface HRDashboardProps {
   employees: Employee[];
@@ -29,12 +28,6 @@ function asDate(input: unknown): Date | null {
 
 export function HRDashboard({ employees, attendance, payrolls, leaves, holidays, jobOpenings = [], applicants = [], offerLetters = [], separations = [] }: HRDashboardProps) {
   const { baseCurrency } = useCompanySettings();
-
-  useEffect(() => {
-    const handler = () => window.location.reload();
-    window.addEventListener('erp_company_settings_changed', handler);
-    return () => window.removeEventListener('erp_company_settings_changed', handler);
-  }, []);
 
   const fmt = (n: number) => formatCurrency(n, baseCurrency, { compact: true });
   const latestAttendanceByEmployee = useMemo(() => {

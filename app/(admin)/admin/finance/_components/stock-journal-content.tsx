@@ -94,12 +94,6 @@ export function StockJournalContent() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('all');
 
-    useEffect(() => {
-        const handler = () => window.location.reload();
-        window.addEventListener('erp_company_settings_changed', handler);
-        return () => window.removeEventListener('erp_company_settings_changed', handler);
-    }, []);
-
     // Form state
     const [formData, setFormData] = useState({
         date: format(new Date(), 'yyyy-MM-dd'),

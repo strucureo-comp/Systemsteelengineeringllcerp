@@ -5,7 +5,6 @@ import { useTenant } from '@/lib/tenant-context';
 import { cn } from '@/lib/utils';
 import { useCompanySettings } from '@/lib/hooks/use-company-settings';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/utils/currency';
-import { useEffect } from 'react';
 
 interface POPreviewProps {
     data: any;
@@ -15,12 +14,6 @@ export function POPreview({ data }: POPreviewProps) {
     const { baseCurrency, companyName, address, phone, email, logo, taxName, taxRate, footerText } = useCompanySettings();
     const { companyProfile } = useTenant();
     const branding = companyProfile?.branding;
-
-    useEffect(() => {
-        const handler = () => window.location.reload();
-        window.addEventListener('erp_company_settings_changed', handler);
-        return () => window.removeEventListener('erp_company_settings_changed', handler);
-    }, []);
 
     const companyAddress = address;
     const companyPhone = phone;

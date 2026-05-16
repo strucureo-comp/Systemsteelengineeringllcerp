@@ -28,12 +28,6 @@ export default function RecurringExpensesPage() {
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        const handler = () => window.location.reload();
-        window.addEventListener('erp_company_settings_changed', handler);
-        return () => window.removeEventListener('erp_company_settings_changed', handler);
-    }, []);
-
-    useEffect(() => {
         fetchData();
     }, []);
 

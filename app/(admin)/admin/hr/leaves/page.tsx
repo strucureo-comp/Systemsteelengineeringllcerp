@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ModuleGuard } from '@/components/shared/layout/module-guard';
 import { AttendanceLeave } from '../_components/attendance-leave';
 import type { Employee, Leave, LeaveType, Holiday } from '@/lib/db/types';
+import { getEmployees, getLeaves, getLeaveTypes, getHolidays } from '@/lib/api';
 
 export default function LeavesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -16,14 +17,17 @@ export default function LeavesPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/hr/leaves');
-        if (response.ok) {
-          const data = await response.json();
-          setEmployees(data.employees || []);
-          setLeaves(data.leaves || []);
-          setLeaveTypes(data.leaveTypes || []);
-          setHolidays(data.holidays || []);
-        }
+        const [empData, leaveData, typeData, holidayData] = await Promise.all([
+          getEmployees(),
+          getLeaves(),
+          getLeaveTypes(),
+          getHolidays()
+        ]);
+
+        setEmployees(empData || []);
+        setLeaves(leaveData || []);
+        setLeaveTypes(typeData || []);
+        setHolidays(holidayData || []);
       } catch (error) {
         console.error('Failed to fetch leaves data:', error);
       } finally {

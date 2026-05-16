@@ -4,7 +4,6 @@ import Image from 'next/image';
 import type { Quotation, QuotationItem, User } from '@/lib/db/types';
 import { useCompanySettings } from '@/lib/hooks/use-company-settings';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/utils/currency';
-import { useEffect } from 'react';
 
 interface QuotationPreviewProps {
     data: Partial<Quotation>;
@@ -13,12 +12,6 @@ interface QuotationPreviewProps {
 
 export function QuotationPreview({ data, client }: QuotationPreviewProps) {
     const { baseCurrency, taxRate: settingsTaxRate, taxName, logo, companyName, footerText } = useCompanySettings();
-
-    useEffect(() => {
-        const handler = () => window.location.reload();
-        window.addEventListener('erp_company_settings_changed', handler);
-        return () => window.removeEventListener('erp_company_settings_changed', handler);
-    }, []);
 
     const {
         quotation_number = 'DRAFT',
