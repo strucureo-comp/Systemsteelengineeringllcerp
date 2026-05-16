@@ -1,23 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: { 
     unoptimized: true,
     formats: ['image/avif', 'image/webp'],
-  },
-  experimental: {
-    serverActions: true,
-  },
-  // Optimization: Reduce bundle size by modularizing heavy UI imports
-  modularizeImports: {
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{member}}',
-    },
   },
   // Optimization: Compress static assets
   compress: true,
@@ -35,3 +20,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+
