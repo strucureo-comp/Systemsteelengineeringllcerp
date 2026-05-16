@@ -129,6 +129,19 @@ export default function SalesInvoicesPage() {
         }
     };
 
+    const filteredInvoices = useMemo(() => {
+        return invoices.filter(i =>
+            i.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            i.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [invoices, searchQuery]);
+
+    const generateInvoiceNumber = () => {
+        const year = new Date().getFullYear();
+        const count = invoices.length + 1;
+        return `INV-${year}-${count.toString().padStart(4, '0')}`;
+    };
+
     const editingTotals = useMemo(() => {
         const subtotal = editingInvoice.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) || 0;
         const taxAmount = subtotal * (editingInvoice.taxRate || 0) / 100;
