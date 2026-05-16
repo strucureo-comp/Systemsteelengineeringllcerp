@@ -66,7 +66,7 @@ jobs:
           cache: 'npm'
       
       - name: Install frontend dependencies
-        run: npm install
+        run: npm ci
       
       - name: Run TypeScript check
         run: npm run typecheck
@@ -116,6 +116,8 @@ jobs:
           file: ./Dockerfile.backend
           push: ${{ env.DOCKER_USERNAME != '' }}
           tags: bridgebreak/erp-backend:latest,bridgebreak/erp-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       
@@ -126,6 +128,8 @@ jobs:
           file: ./Dockerfile.frontend
           push: ${{ env.DOCKER_USERNAME != '' }}
           tags: bridgebreak/erp-frontend:latest,bridgebreak/erp-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
 
