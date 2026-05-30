@@ -9,7 +9,7 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   async rewrites() {
-    const backendBase = process.env.API_PROXY_TARGET || 'http://localhost:4000';
+    const backendBase = process.env.API_PROXY_TARGET || 'http://localhost:5000';
     return [
       {
         source: '/api/backend/:path*',

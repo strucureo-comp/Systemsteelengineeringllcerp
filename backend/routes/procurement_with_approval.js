@@ -451,7 +451,7 @@ router.post('/grn',
             await po.save();
             
             // Create inventory transactions for received items
-            const { InventoryTransaction, StockBalance } = require('../models/Inventory');
+            const { InventoryTransaction, StockBalance } = require('../models/Inventory_updated');
             const transactionPromises = grn.items.map(async (item) => {
                 // Create inventory transaction
                 const transactionId = `GRN-${grn.grn_number}-${Date.now()}`;

@@ -37,10 +37,7 @@ export default function LoginPage() {
             setError(error.message);
             setLoading(false);
         } else {
-            // Wait for auth state to update before redirecting
-            setTimeout(() => {
-                router.push('/admin/dashboard');
-            }, 200);
+            router.push('/admin/dashboard');
         }
     };
 

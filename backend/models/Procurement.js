@@ -7,6 +7,12 @@ const purchaseRequestSchema = new mongoose.Schema({
     quantity: { type: Number, required: true },
     unit: { type: String, default: 'pcs' },
     estimated_cost: { type: Number, default: 0 },
+    type: {
+        type: String,
+        enum: ['purchase', 'material_request'],
+        default: 'purchase'
+    },
+    warehouse_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse' },
     priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
     status: {
         type: String,
@@ -27,8 +33,8 @@ const purchaseOrderSchema = new mongoose.Schema({
     total_amount: { type: Number, required: true },
     status: {
         type: String,
-        enum: ['pending', 'approved', 'issued', 'partially_received', 'received', 'closed', 'cancelled'],
-        default: 'pending'
+        enum: ['draft', 'pending_approval', 'approved', 'issued', 'partially_received', 'received', 'closed', 'cancelled'],
+        default: 'draft'
     },
     delivery_address: {
         street: String,

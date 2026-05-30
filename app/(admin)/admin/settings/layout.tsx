@@ -16,6 +16,7 @@ const settingsNav = [
             { title: 'Profile', href: '/admin/settings/profile', icon: User },
             { title: 'Company', href: '/admin/settings/company', icon: Building2 },
             { title: 'Branding', href: '/admin/settings/branding', icon: Palette },
+            { title: 'Module Configuration', href: '/admin/settings/modules', icon: Layers },
         ]
     },
     {

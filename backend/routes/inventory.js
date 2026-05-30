@@ -6,16 +6,21 @@ const {
     StockBalance,
     InventoryTransaction,
     CostLayer
-} = require('../models/Inventory');
+} = require('../models/Inventory_updated');
 const { JournalEntry, Account } = require('../models/Finance');
 const { auth } = require('../middleware/auth');
+
+function tenantIdFromReq(req) {
+    return req.user?.tenant_id || 'default';
+}
 
 router.use(auth);
 
 // ── ITEM MASTER ──────────────────────────────────────────────────────────────
 router.get('/items', async (req, res) => {
     try {
-        const items = await Item.find();
+        const tenant_id = tenantIdFromReq(req);
+        const items = await Item.find({ tenant_id });
         res.json(items);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -24,7 +29,8 @@ router.get('/items', async (req, res) => {
 
 router.post('/items', async (req, res) => {
     try {
-        const item = new Item(req.body);
+        const tenant_id = tenantIdFromReq(req);
+        const item = new Item({ ...req.body, tenant_id });
         await item.save();
         res.status(201).json(item);
     } catch (err) {
@@ -35,10 +41,22 @@ router.post('/items', async (req, res) => {
 // ── WAREHOUSES ──────────────────────────────────────────────────────────────
 router.get('/warehouses', async (req, res) => {
     try {
-        const warehouses = await Warehouse.find();
+        const tenant_id = tenantIdFromReq(req);
+        const warehouses = await Warehouse.find({ tenant_id });
         res.json(warehouses);
     } catch (err) {
         res.status(500).json({ message: err.message });
+    }
+});
+
+router.post('/warehouses', async (req, res) => {
+    try {
+        const tenant_id = tenantIdFromReq(req);
+        const warehouse = new Warehouse({ ...req.body, tenant_id });
+        await warehouse.save();
+        res.status(201).json(warehouse);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
     }
 });
 
@@ -55,18 +73,20 @@ router.post('/move', async (req, res) => {
         dest_warehouse_id,
         quantity,
         unit_cost,
-        reference_no,
-        user
+        reference_no
     } = req.body;
 
+    const tenant_id = tenantIdFromReq(req);
+
     try {
-        const item = await Item.findById(item_id);
+        const item = await Item.findOne({ _id: item_id, tenant_id });
         if (!item) return res.status(404).json({ message: 'Item not found' });
 
         const tx_id = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         // 1. Record Transaction
         const tx = new InventoryTransaction({
+            tenant_id,
             transaction_id: tx_id,
             type,
             item_id,
@@ -76,25 +96,26 @@ router.post('/move', async (req, res) => {
             unit_cost: unit_cost || item.last_purchase_price,
             total_value: (unit_cost || item.last_purchase_price) * quantity,
             reference_no,
-            posted_by: user
+            posted_by: req.user._id
         });
 
         // 2. Update Balances
         if (source_warehouse_id) {
-            await updateBalance(item_id, source_warehouse_id, -quantity);
+            await updateBalance(tenant_id, item_id, source_warehouse_id, -quantity);
         }
         if (dest_warehouse_id) {
-            await updateBalance(item_id, dest_warehouse_id, quantity);
+            await updateBalance(tenant_id, item_id, dest_warehouse_id, quantity);
         }
 
         // 3. FIFO / Cost Layer Logic (Simplified for now)
-        if (type === 'GRN') {
+        if (type === 'GRN' && dest_warehouse_id) {
             const layer = new CostLayer({
+                tenant_id,
                 item_id,
                 warehouse_id: dest_warehouse_id,
                 original_qty: quantity,
                 remaining_qty: quantity,
-                unit_cost: unit_cost,
+                unit_cost: unit_cost || item.last_purchase_price,
                 received_date: new Date(),
                 transaction_id: tx._id
             });
@@ -102,73 +123,33 @@ router.post('/move', async (req, res) => {
         }
 
         await tx.save();
-
-        // 4. Trigger Journal Entry (Optional - if Finance enabled)
-        if (['sale', 'issue_to_site', 'waste'].includes(type)) {
-            // Recognize COGS
-            // Generate Journal Entry logic here...
-        }
-
         res.status(201).json(tx);
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        res.status(500).json({ message: err.message });
     }
 });
 
-// ── UTILITIES ────────────────────────────────────────────────────────────────
-async function updateBalance(itemId, warehouseId, qtyDelta) {
-    const balance = await StockBalance.findOne({ item_id: itemId, warehouse_id: warehouseId });
-    if (balance) {
-        balance.on_hand += qtyDelta;
-        balance.available = balance.on_hand - balance.allocated;
-        await balance.save();
-    } else {
-        const newBalance = new StockBalance({
-            item_id: itemId,
-            warehouse_id: warehouseId,
-            on_hand: qtyDelta,
-            available: qtyDelta
-        });
-        await newBalance.save();
-    }
+// Helper to update balance
+async function updateBalance(tenant_id, item_id, warehouse_id, qtyDelta) {
+    const balance = await StockBalance.findOneAndUpdate(
+        { tenant_id, item_id, warehouse_id },
+        { $inc: { on_hand: qtyDelta, available: qtyDelta } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    return balance;
 }
 
-// ── SUMMARY & ANALYTICS ──────────────────────────────────────────────────────
+// Dashboard Summary
 router.get('/summary', async (req, res) => {
     try {
-        const skus = await Item.countDocuments();
-        const transactions = await InventoryTransaction.find().limit(10).sort({ createdAt: -1 });
-
-        // Aggregate total value
-        const balances = await StockBalance.find();
-        // Calculate total inventory value using aggregation
-        const totalValue = await StockBalance.aggregate([
-            { $match: { tenant_id } },
-            {
-                $lookup: {
-                    from: 'items',
-                    localField: 'item_id',
-                    foreignField: '_id',
-                    as: 'item'
-                }
-            },
-            { $unwind: '$item' },
-            {
-                $project: {
-                    value: { $multiply: ['$on_hand', '$wac_cost'] }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    total: { $sum: '$value' }
-                }
-            }
-        ]);
-        const inventoryValue = totalValue.length > 0 ? totalValue[0].total : 0;
+        const tenant_id = tenantIdFromReq(req);
+        const skus = await Item.countDocuments({ tenant_id });
+        const transactions = await InventoryTransaction.find({ tenant_id }).sort({ createdAt: -1 }).limit(5);
+        
+        const balances = await StockBalance.find({ tenant_id });
+        const totalValue = balances.reduce((sum, b) => sum + (b.on_hand * b.wac_cost), 0);
 
         res.json({
-            totalValue: inventoryValue,
             total_skus: skus,
             recent_transactions: transactions,
             total_value: totalValue

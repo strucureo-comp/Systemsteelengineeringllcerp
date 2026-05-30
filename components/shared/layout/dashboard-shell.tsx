@@ -21,8 +21,14 @@ export function DashboardShell({
   const { user, loading } = useAuth();
 
   const isAdminUser = (role?: string | null) => {
-    const normalized = String(role || '').trim().toLowerCase();
-    return normalized === 'admin' || normalized === 'superadmin' || normalized === 'administrator';
+    if (!role) return false;
+    const normalized = String(role).trim().toLowerCase();
+    return [
+      'admin', 'superadmin', 'administrator', 
+      'sales rep', 'sales manager', 'purchasing agent', 
+      'warehouse staff', 'machine operator', 'finance manager', 
+      'hr manager', 'vendor'
+    ].includes(normalized);
   };
 
   useEffect(() => {

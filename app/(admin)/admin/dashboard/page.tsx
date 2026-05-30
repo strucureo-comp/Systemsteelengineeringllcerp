@@ -40,6 +40,9 @@ export default function AdminDashboard() {
             items: [
                 { title: 'Sales Hub', desc: 'Quotations, Invoices & Delivery', href: '/admin/sales', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
                 { title: 'Procurement', desc: 'Purchase Orders & Vendor Bills', href: '/admin/purchases', icon: Receipt, color: 'text-blue-600', bg: 'bg-blue-500/10' },
+                { title: 'Manufacturing', desc: 'Production Orders & BOMs', href: '/admin/manufacturing', icon: Factory, color: 'text-purple-600', bg: 'bg-purple-500/10' },
+                { title: 'Inventory', desc: 'Stock Balances & Movements', href: '/admin/finance/inventory', icon: Package, color: 'text-cyan-600', bg: 'bg-cyan-500/10' },
+                { title: 'Projects', desc: 'Project Tracking & Timesheets', href: '/admin/projects', icon: FileText, color: 'text-indigo-600', bg: 'bg-indigo-500/10' },
                 { title: 'HR & Teams', desc: 'Directory, Payroll & Time', href: '/admin/hr', icon: Users, color: 'text-orange-600', bg: 'bg-orange-500/10' },
             ]
         },

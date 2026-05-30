@@ -356,6 +356,36 @@ async function processApproval(approvalRequestId, approverId, action, comments) 
                 
                 await approvalRequest.save();
                 
+                // ── POST-APPROVAL ACTIONS ───────────────────────────────────────────
+                // Update the status of the target document automatically
+                try {
+                    const docId = approvalRequest.document_id;
+                    const tenant_id = approvalRequest.tenant_id;
+
+                    if (approvalRequest.document_type === 'payroll_approval') {
+                        const { Payroll } = require('../models/HRMS');
+                        await Payroll.findByIdAndUpdate(docId, {
+                            status: 'approved',
+                            approved_at: new Date(),
+                            approved_by: approverId
+                        });
+                    } else if (approvalRequest.document_type === 'purchase_order') {
+                        const { PurchaseOrder } = require('../models/Procurement');
+                        await PurchaseOrder.findByIdAndUpdate(docId, {
+                            status: 'approved',
+                            updated_by: approverId
+                        });
+                    } else if (approvalRequest.document_type === 'bill_approval') {
+                        const { Bill } = require('../models/Payables');
+                        await Bill.findByIdAndUpdate(docId, {
+                            status: 'approved',
+                            approved_at: new Date()
+                        });
+                    }
+                } catch (callbackError) {
+                    console.error('[Approval Engine] Post-approval update failed:', callbackError.message);
+                }
+
                 // Notify submitter
                 await createNotification(
                     approvalRequest.tenant_id,

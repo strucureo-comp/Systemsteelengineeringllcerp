@@ -1467,6 +1467,16 @@ export async function createPurchaseRequest(data: any) {
     } catch (e) { console.warn('[API] createPurchaseRequest error:', e); }
     return null;
 }
+export async function approvePurchaseRequest(id: string) {
+    try {
+        const res = await fetch(`${API_BASE}/procurement/requests/${id}/approve`, {
+            method: 'POST',
+            headers: authHeaders()
+        });
+        if (res.ok) return res.json();
+    } catch (e) { console.warn('[API] approvePurchaseRequest error:', e); }
+    return null;
+}
 
 // RFQ
 export async function getRFQs() {
@@ -1805,10 +1815,10 @@ export async function createPriceList(data: any) {
 }
 
 // --- TENANT & SETTINGS (REAL BACKEND) ---
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/backend';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
 const API_BASE = BASE_URL.startsWith('/')
-    ? BASE_URL
-    : (BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`);
+  ? BASE_URL
+  : (BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`);
 
 function getToken(): string | null {
     if (typeof window === 'undefined') return null;

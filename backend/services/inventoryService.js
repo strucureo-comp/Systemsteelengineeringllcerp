@@ -8,7 +8,7 @@ const {
 } = require('../models/Inventory_updated');
 const { JournalEntry, Account } = require('../models/Finance');
 const { Notification } = require('../models/Notification');
-const { getNextSequence } = require('../utils/sequence');
+const { getNextNumber } = require('../utils/sequence');
 
 /**
  * FIFO Cost Layer Consumption
@@ -193,7 +193,7 @@ async function recordTransaction(data, session = null) {
     } = data;
 
     // Generate transaction ID
-    const transaction_id = await getNextSequence('inventory_transaction', tenant_id);
+    const transaction_id = await getNextNumber(tenant_id, 'inventory_transaction', 'TX');
 
     const transaction = new InventoryTransaction({
         tenant_id,
@@ -393,11 +393,12 @@ async function checkReorderPoint(tenant_id, item_id, warehouse_id) {
                 user_id: user._id,
                 type: 'warning',
                 priority: 'high',
-            title: 'Low Stock Alert',
-            message,
-            reference_type: 'reorder_alert',
-            reference_id: alert._id
-        });
+                title: 'Low Stock Alert',
+                message,
+                reference_type: 'reorder_alert',
+                reference_id: alert._id
+            })
+        );
 
         console.log(`[REORDER ALERT] ${message}`);
     }
@@ -503,7 +504,7 @@ async function postToFinance(transaction, journalType, session = null) {
     }
 
     // Create journal entry
-    const entryNumber = await getNextSequence('journal_entry', transaction.tenant_id);
+    const entryNumber = await getNextNumber(transaction.tenant_id, 'journal_entry', 'JV');
     const totalDebit = lines.reduce((sum, line) => sum + line.debit, 0);
     const totalCredit = lines.reduce((sum, line) => sum + line.credit, 0);
 

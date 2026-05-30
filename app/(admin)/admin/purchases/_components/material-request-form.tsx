@@ -30,10 +30,11 @@ import {
     Construction
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createPurchaseRequest } from '@/lib/api';
-import type { Project } from '@/lib/db/types';
+import { createPurchaseRequest, getWarehouses } from '@/lib/api';
+import type { Project, Warehouse } from '@/lib/db/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect } from 'react';
 
 const generateRef = (prefix: string) => {
     const date = new Date();
@@ -48,8 +49,24 @@ interface MaterialRequestFormProps {
 
 export function MaterialRequestForm({ projects, onSuccess }: MaterialRequestFormProps) {
     const [loading, setLoading] = useState(false);
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+    const [loadingWarehouses, setLoadingWarehouses] = useState(true);
     const today = new Date().toISOString().split('T')[0];
     const [mrNumber] = useState(generateRef('MR'));
+
+    useEffect(() => {
+        async function fetchWarehouses() {
+            try {
+                const data = await getWarehouses();
+                setWarehouses(data || []);
+            } catch (err) {
+                console.error('Failed to fetch warehouses:', err);
+            } finally {
+                setLoadingWarehouses(false);
+            }
+        }
+        fetchWarehouses();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -73,6 +90,8 @@ export function MaterialRequestForm({ projects, onSuccess }: MaterialRequestForm
                 quantity: Number(fd.get('quantity')),
                 unit: fd.get('unit') as string || 'units',
                 project_id: fd.get('project_id') as string,
+                warehouse_id: fd.get('warehouse_id') as string,
+                type: 'material_request',
                 needed_by: fd.get('required_date') as string,
                 priority: (fd.get('priority') as string).toLowerCase() || 'medium',
                 notes: JSON.stringify(extraData),
@@ -214,6 +233,19 @@ export function MaterialRequestForm({ projects, onSuccess }: MaterialRequestForm
                             <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Required Date</Label>
                             <Input name="required_date" type="date" min={today} required className="h-10 border-border" />
                         </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Request Stock From (Warehouse)</Label>
+                        <Select name="warehouse_id" required>
+                            <SelectTrigger className="h-10 border-border text-xs font-bold uppercase">
+                                <SelectValue placeholder={loadingWarehouses ? "Loading warehouses..." : "Select Source..."} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {warehouses.map(w => (
+                                    <SelectItem key={w.id} value={w.id} className="text-xs font-bold uppercase">{w.name} ({w.code})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="space-y-1.5">
                         <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Delivery Drop-off Point</Label>

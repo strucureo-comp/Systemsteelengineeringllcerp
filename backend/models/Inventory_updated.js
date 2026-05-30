@@ -124,6 +124,7 @@ const inventoryTransactionSchema = new mongoose.Schema({
             'customer_return',        // Return from customer
             'production_issue',       // Issue to production
             'production_receipt',     // Receipt from production
+            'site_issue',             // Issue to site/project (Material Request)
             'waste',                  // Damaged/expired
             'sample'                  // Sample/demo
         ],
@@ -144,7 +145,7 @@ const inventoryTransactionSchema = new mongoose.Schema({
     // Reference
     reference_type: { 
         type: String, 
-        enum: ['grn', 'sales_order', 'purchase_order', 'transfer', 'adjustment', 'manual'],
+        enum: ['grn', 'sales_order', 'purchase_order', 'transfer', 'adjustment', 'manual', 'material_request'],
         required: true 
     },
     reference_id: { type: mongoose.Schema.Types.ObjectId },

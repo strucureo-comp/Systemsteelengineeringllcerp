@@ -10,7 +10,7 @@ const {
     MaterialIssue, 
     ProductionScrap 
 } = require('../models/Manufacturing');
-const { Item } = require('../models/Inventory');
+const { Item } = require('../models/Inventory_updated');
 const { auth } = require('../middleware/auth');
 const Sequence = require('../models/Sequence');
 
@@ -97,22 +97,28 @@ router.get('/boms/:id', auth, async (req, res) => {
 
 router.post('/boms', auth, async (req, res) => {
     try {
+        const tenant_id = req.user.tenant_id;
         // Fetch product details
-        const product = await Item.findById(req.body.product_id);
+        const product = await Item.findOne({ _id: req.body.product_id, tenant_id });
         if (!product) return res.status(404).json({ error: 'Product not found' });
 
         // Calculate component costs
         let totalCost = 0;
         const components = await Promise.all(req.body.components.map(async (comp) => {
-            const item = await Item.findById(comp.item_id);
+            const item = await Item.findOne({ _id: comp.item_id, tenant_id });
             const unitCost = item?.standard_cost || 0;
-            const wasteQty = comp.quantity * (comp.waste_factor / 100);
-            const totalQty = comp.quantity + wasteQty;
+            const quantity = Number(comp.quantity || 0);
+            const wasteFactor = Number(comp.waste_factor || 0);
+            
+            const wasteQty = quantity * (wasteFactor / 100);
+            const totalQty = quantity + wasteQty;
             const compTotalCost = totalQty * unitCost;
             totalCost += compTotalCost;
 
             return {
                 ...comp,
+                quantity,
+                waste_factor: wasteFactor,
                 item_name: item?.name,
                 item_sku: item?.sku,
                 unit_cost: unitCost,
@@ -230,7 +236,7 @@ router.get('/production-orders/:id', auth, async (req, res) => {
 
 router.post('/production-orders', auth, async (req, res) => {
     try {
-        const bom = await BOM.findById(req.body.bom_id).populate('product_id');
+        const bom = await BOM.findOne({ _id: req.body.bom_id, tenant_id: req.user.tenant_id }).populate('product_id');
         if (!bom) return res.status(404).json({ error: 'BOM not found' });
 
         const seq = await Sequence.getNext('production_order', req.user.tenant_id);
@@ -503,7 +509,8 @@ router.post('/mrp/calculate', auth, async (req, res) => {
         const requirements = await manufacturingService.calculateMaterialRequirements(
             bom_id,
             quantity,
-            warehouse_id
+            warehouse_id,
+            req.user.tenant_id
         );
         res.json(requirements);
     } catch (err) {
@@ -569,7 +576,7 @@ router.get('/analytics/efficiency', auth, async (req, res) => {
 // Cost Variance Analysis
 router.get('/analytics/cost-variance/:id', auth, async (req, res) => {
     try {
-        const variance = await manufacturingService.calculateCostVariance(req.params.id);
+        const variance = await manufacturingService.calculateCostVariance(req.params.id, req.user.tenant_id);
         res.json(variance);
     } catch (err) {
         res.status(500).json({ error: 'Failed to calculate cost variance', details: err.message });
@@ -580,7 +587,7 @@ router.get('/analytics/cost-variance/:id', auth, async (req, res) => {
 router.post('/analytics/lead-time', auth, async (req, res) => {
     try {
         const { bom_id, quantity } = req.body;
-        const leadTime = await manufacturingService.calculateProductionLeadTime(bom_id, quantity);
+        const leadTime = await manufacturingService.calculateProductionLeadTime(bom_id, quantity, req.user.tenant_id);
         res.json(leadTime);
     } catch (err) {
         res.status(500).json({ error: 'Failed to calculate lead time', details: err.message });

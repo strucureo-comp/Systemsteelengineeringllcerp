@@ -7,6 +7,8 @@ const approvalEngine = require('../services/approvalEngine');
 const { sendEmail } = require('../services/emailService');
 const validate = require('../middleware/validate');
 const { purchaseOrderValidator } = require('../validators/prodReadinessValidators');
+const inventoryService = require('../services/inventoryService');
+const { Item: InventoryItem } = require('../models/Inventory_updated');
 
 function tenantIdFromReq(req) {
     return req.user?.tenant_id || 'default';
@@ -47,6 +49,78 @@ router.post('/requests', auth, async (req, res) => {
         res.status(201).json(request);
     } catch (err) {
         res.status(500).json({ error: 'Failed to create purchase request' });
+    }
+});
+
+// Approve Purchase Request (Material Request)
+router.post('/requests/:id/approve', auth, async (req, res) => {
+    try {
+        const tenant_id = tenantIdFromReq(req);
+        const request = await PurchaseRequest.findOne(tenantScopedFilter(tenant_id, { _id: req.params.id }));
+        
+        if (!request) return res.status(404).json({ error: 'Request not found' });
+        
+        if (request.status !== 'pending') {
+            return res.status(400).json({ 
+                error: 'Only pending requests can be approved',
+                currentStatus: request.status
+            });
+        }
+
+        request.status = 'approved';
+        request.approved_by = req.user.id;
+        request.approved_at = new Date();
+        await request.save();
+
+        // Requirement 3.2: Upon approval, inventory levels must be updated
+        // If it's a material request and we have a warehouse, record a movement
+        if (request.type === 'material_request' && request.warehouse_id) {
+            // Try to find a matching item in inventory by name
+            const item = await InventoryItem.findOne(tenantScopedFilter(tenant_id, { 
+                name: new RegExp(`^${request.item_name}$`, 'i') 
+            }));
+
+            if (item) {
+                // Record transaction in inventory
+                // Note: This is an internal issue, so type is 'site_issue'
+                await inventoryService.updateStockBalance(
+                    tenant_id,
+                    item._id,
+                    request.warehouse_id,
+                    -request.quantity, // Negative for issue
+                    0, // No allocation change
+                    null // No session
+                );
+
+                await inventoryService.recordTransaction({
+                    tenant_id,
+                    type: 'site_issue',
+                    item_id: item._id,
+                    warehouse_id: request.warehouse_id,
+                    qty: -request.quantity,
+                    unit_cost: item.last_purchase_price || 0,
+                    reference_type: 'material_request',
+                    reference_id: request._id,
+                    reference_number: request.number || request._id.toString(),
+                    posted_by: req.user._id
+                });
+                
+                request.notes = (request.notes || '') + '\n[System] Inventory updated and transaction recorded automatically upon approval.';
+                await request.save();
+            } else {
+                request.notes = (request.notes || '') + '\n[System] Warning: No matching item found in inventory catalog. Manual stock adjustment required.';
+                await request.save();
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Material request approved',
+            request
+        });
+    } catch (err) {
+        console.error('Error approving request:', err);
+        res.status(500).json({ error: 'Failed to approve request', detail: err.message });
     }
 });
 

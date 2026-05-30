@@ -44,6 +44,8 @@ export const adminNavItems: NavItem[] = [
     { title: 'Sales Hub', href: '/admin/sales', icon: ShoppingCart, section: 'Operations', moduleKey: 'sales' },
     { title: 'Procurement', href: '/admin/purchases', icon: Building2, section: 'Operations', moduleKey: 'purchases' },
     { title: 'Manufacturing', href: '/admin/manufacturing', icon: Factory, section: 'Operations', moduleKey: 'manufacturing' },
+    { title: 'Inventory', href: '/admin/finance/inventory', icon: Package, section: 'Operations', moduleKey: 'inventory' },
+    { title: 'Projects', href: '/admin/projects', icon: Briefcase, section: 'Operations', moduleKey: 'projects' },
     { title: 'HR & Teams', href: '/admin/hr', icon: Users, section: 'Operations', moduleKey: 'hr' },
     { title: 'Finance Center', href: '/admin/finance', icon: DollarSign, section: 'Finance', moduleKey: 'finance' },
     { title: 'Reports hub', href: '/admin/reports', icon: BarChart3, section: 'System', moduleKey: 'reports' },

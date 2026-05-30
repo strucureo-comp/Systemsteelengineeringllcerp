@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getPurchaseRequests, getProjects } from '@/lib/api';
+import { getPurchaseRequests, getProjects, approvePurchaseRequest } from '@/lib/api';
 import { DashboardShell } from '@/components/shared/layout/dashboard-shell';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,18 +14,22 @@ import {
     Search,
     RefreshCcw,
     ChevronRight,
-    ChevronLeft
+    ChevronLeft,
+    CheckCircle2,
+    Loader2
 } from 'lucide-react';
 import type { PurchaseRequest, Project } from '@/lib/db/types';
 import { cn } from '@/lib/utils';
 import { MaterialRequestForm } from '../_components/material-request-form';
 import { PurchasesNav } from '../_components/purchases-nav';
+import { toast } from 'sonner';
 
 export default function MaterialRequestsPage() {
     const router = useRouter();
     const [requests, setRequests] = useState<PurchaseRequest[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
+    const [approvingId, setApprovingId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isMRFormOpen, setIsMROpen] = useState(false);
 
@@ -46,6 +50,23 @@ export default function MaterialRequestsPage() {
             console.error(e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleApprove = async (id: string) => {
+        setApprovingId(id);
+        try {
+            const res = await approvePurchaseRequest(id);
+            if (res) {
+                toast.success('Material request approved and stock movement recorded');
+                fetchData();
+            } else {
+                toast.error('Failed to approve request');
+            }
+        } catch (err) {
+            toast.error('Error during approval');
+        } finally {
+            setApprovingId(null);
         }
     };
 
@@ -136,9 +157,26 @@ export default function MaterialRequestsPage() {
                                             )}>{req.status}</Badge>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-primary" onClick={() => router.push(`/admin/purchases/new?request_id=${req.id}`)}>
-                                                <ChevronRight size={16} />
-                                            </Button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                {req.status === 'pending' && (
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="outline" 
+                                                        disabled={approvingId === req.id}
+                                                        className="h-8 text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                                                        onClick={() => handleApprove(req.id)}
+                                                    >
+                                                        {approvingId === req.id ? (
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                        ) : (
+                                                            <>Approve</>
+                                                        )}
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/60 hover:text-primary" onClick={() => router.push(`/admin/purchases/new?request_id=${req.id}`)}>
+                                                    <ChevronRight size={16} />
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

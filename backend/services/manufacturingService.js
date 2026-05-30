@@ -6,7 +6,7 @@ const {
     MaterialIssue, 
     ProductionScrap 
 } = require('../models/Manufacturing');
-const { Item, StockBalance } = require('../models/Inventory');
+const { Item, StockBalance } = require('../models/Inventory_updated');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MATERIAL REQUIREMENTS PLANNING (MRP)
@@ -17,11 +17,12 @@ const { Item, StockBalance } = require('../models/Inventory');
  * @param {string} bomId - BOM ID
  * @param {number} quantity - Production quantity
  * @param {string} warehouseId - Target warehouse
+ * @param {string} tenantId - Tenant ID
  * @returns {Object} Material requirements and availability
  */
-async function calculateMaterialRequirements(bomId, quantity, warehouseId) {
+async function calculateMaterialRequirements(bomId, quantity, warehouseId, tenantId) {
     try {
-        const bom = await BOM.findById(bomId).populate('components.item_id');
+        const bom = await BOM.findOne({ _id: bomId, tenant_id: tenantId }).populate('components.item_id');
         if (!bom) throw new Error('BOM not found');
 
         const requirements = [];
@@ -34,6 +35,7 @@ async function calculateMaterialRequirements(bomId, quantity, warehouseId) {
 
             // Check stock availability
             const stockBalance = await StockBalance.findOne({
+                tenant_id: tenantId,
                 item_id: component.item_id._id,
                 warehouse_id: warehouseId
             });
@@ -216,9 +218,9 @@ async function calculateProductionEfficiency(tenantId, startDate, endDate) {
 /**
  * Calculate cost variance (Actual vs Standard)
  */
-async function calculateCostVariance(productionOrderId) {
+async function calculateCostVariance(productionOrderId, tenantId) {
     try {
-        const order = await ProductionOrder.findById(productionOrderId).populate('bom_id');
+        const order = await ProductionOrder.findOne({ _id: productionOrderId, tenant_id: tenantId }).populate('bom_id');
         if (!order) throw new Error('Production order not found');
 
         const bom = order.bom_id;
@@ -277,9 +279,9 @@ async function calculateCostVariance(productionOrderId) {
 /**
  * Calculate production lead time based on BOM and routing
  */
-async function calculateProductionLeadTime(bomId, quantity) {
+async function calculateProductionLeadTime(bomId, quantity, tenantId) {
     try {
-        const bom = await BOM.findById(bomId);
+        const bom = await BOM.findOne({ _id: bomId, tenant_id: tenantId });
         if (!bom) throw new Error('BOM not found');
 
         // Base lead time calculation (simplified)
@@ -319,7 +321,7 @@ async function suggestProductionSchedule(tenantId, startDate, endDate) {
         let currentDate = new Date(startDate);
 
         for (const order of orders) {
-            const leadTime = await calculateProductionLeadTime(order.bom_id, order.quantity);
+            const leadTime = await calculateProductionLeadTime(order.bom_id, order.quantity, tenantId);
             
             schedule.push({
                 production_order: order.order_number,

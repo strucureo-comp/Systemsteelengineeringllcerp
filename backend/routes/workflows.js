@@ -7,51 +7,59 @@ const router = express.Router();
 // GET /api/workflows
 router.get('/', auth, async (req, res) => {
     try {
-        const workflows = await ApprovalWorkflow.find({}).sort({ createdAt: -1 });
-        res.json({ data: workflows });
+        const tenant_id = req.user?.tenant_id || 'default';
+        const workflows = await ApprovalWorkflow.find({ tenant_id }).sort({ createdAt: -1 });
+        res.json({ success: true, data: workflows });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch workflows' });
+        res.status(500).json({ success: false, error: 'Failed to fetch workflows' });
     }
 });
 
 // POST /api/workflows
 router.post('/', auth, adminOnly, async (req, res) => {
     try {
-        const { title, status, threshold, flow } = req.body;
+        const tenant_id = req.user?.tenant_id || 'default';
         const workflow = await ApprovalWorkflow.create({
-            title, status, threshold, flow,
-            created_by: req.user._id
+            ...req.body,
+            tenant_id,
+            created_by: req.user._id,
+            updated_by: req.user._id
         });
-        res.status(201).json({ data: workflow });
+        res.status(201).json({ success: true, data: workflow });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to create workflow' });
+        console.error('[Workflow Route] Create error:', error);
+        res.status(400).json({ 
+            success: false, 
+            error: error.message || 'Failed to create workflow' 
+        });
     }
 });
 
 // PUT /api/workflows/:id
 router.put('/:id', auth, adminOnly, async (req, res) => {
     try {
-        const { title, status, threshold, flow } = req.body;
-        const workflow = await ApprovalWorkflow.findByIdAndUpdate(
-            req.params.id,
-            { title, status, threshold, flow },
+        const tenant_id = req.user?.tenant_id || 'default';
+        const workflow = await ApprovalWorkflow.findOneAndUpdate(
+            { _id: req.params.id, tenant_id },
+            { ...req.body, updated_by: req.user._id },
             { new: true, runValidators: true }
         );
-        if (!workflow) return res.status(404).json({ error: 'Workflow not found' });
-        res.json({ data: workflow });
+        if (!workflow) return res.status(404).json({ success: false, error: 'Workflow not found' });
+        res.json({ success: true, data: workflow });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update workflow' });
+        res.status(400).json({ success: false, error: error.message || 'Failed to update workflow' });
     }
 });
 
 // DELETE /api/workflows/:id
 router.delete('/:id', auth, adminOnly, async (req, res) => {
     try {
-        const workflow = await ApprovalWorkflow.findByIdAndDelete(req.params.id);
-        if (!workflow) return res.status(404).json({ error: 'Workflow not found' });
-        res.json({ message: 'Workflow deleted' });
+        const tenant_id = req.user?.tenant_id || 'default';
+        const workflow = await ApprovalWorkflow.findOneAndDelete({ _id: req.params.id, tenant_id });
+        if (!workflow) return res.status(404).json({ success: false, error: 'Workflow not found' });
+        res.json({ success: true, message: 'Workflow deleted' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to delete workflow' });
+        res.status(500).json({ success: false, error: 'Failed to delete workflow' });
     }
 });
 

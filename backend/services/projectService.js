@@ -1,6 +1,6 @@
 const Project = require('../models/Project');
 const { JournalEntry } = require('../models/Finance');
-const { InventoryTransaction } = require('../models/Inventory');
+const { InventoryTransaction } = require('../models/Inventory_updated');
 const { Employee } = require('../models/HRMS');
 
 /**
